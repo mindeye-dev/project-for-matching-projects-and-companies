@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: backend
+    environment:
+      - FLASK_ENV=production
+      - JWT_SECRET_KEY=your-secret-key
+      - DATABASE_URL=sqlite:///db.sqlite3
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Scheduled scraper service
+  scraper-scheduler:
+    build:
+      context: ./scrapers
+      dockerfile: Dockerfile.scheduler
+    container_name: scraper-scheduler
+    environment:
+      - BACKEND_API=http://backend:5000/api/opportunity
+      - HEADLESS=1
+      - PROXY_API_KEY=${PROXY_API_KEY:-}
+      - SLACK_WEBHOOK=${SLACK_WEBHOOK:-}
+    volumes:
+      - ./scrapers/logs:/app/logs
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata: 

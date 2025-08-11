@@ -1,0 +1,14 @@
+Flask
+Flask-RESTful
+Flask-CORS
+Flask-SQLAlchemy
+pandas
+openpyxl
+APScheduler
+requests
+beautifulsoup4
+selenium
+python-dotenv
+psycopg2-binary 
+Flask-JWT-Extended
+Werkzeug 

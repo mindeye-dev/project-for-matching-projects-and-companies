@@ -1,0 +1,37 @@
+Scope of Work:
+A civil engineering consultancy specialized in transport and infrastructure seeks an AI developer to build and deploy a custom AI agent. The agent will monitor opportunities from multilateral development banks and international funding agencies and support strategic business development across Africa and the Middle East.
+The AI agent will:
+Track and extract new Expressions of Interest (EOIs) and consultancy opportunities from major development bank and donor websites.
+Generate a structured Excel report daily, listing key data such as:
+Project name
+Client
+Country
+Sector
+Summary of requested services
+Submission deadline
+Associated program or project (with indicative budget if available)
+URL of the opportunity
+Implement an internal scoring system (0–100%) to indicate alignment of each opportunity with our firm's expertise (e.g. roads, highways, traffic studies, transport planning, environmental and social impact assessments).
+Identify 2–3 local engineering firms in each country for possible partnership, including company name and website.
+Deliver reports daily to a specified location for internal review.
+Provide chat-based interaction capabilities to query opportunities, request summaries, or filter results.
+Allow future integration into a collaboration platform for team access and interaction.
+Key Technical Requirements:
+Web scraping capability to extract data from public portals (multilingual support preferred).
+Automated daily report generation in Excel format.
+Scoring model to assess opportunity compatibility.
+Partner lookup and listing mechanism per country.
+Chat interface (web-based or platform-native) for querying and reporting interaction.
+Ability to scale or migrate to enterprise collaboration tools in a second phase.
+Preferred Technologies:
+Python or equivalent for scraping and automation
+Use of reliable cloud hosting during testing
+Open-source chatbot frameworks or light deployment interfaces
+Experience with APIs for messaging or workspace integration is an advantage
+Deliverables:
+Working AI agent with chat interface
+Daily Excel reporting system
+Partner identification module
+Compatibility scoring algorithm
+Basic documentation and usage guide
+Future-ready structure for integration into enterprise workspace

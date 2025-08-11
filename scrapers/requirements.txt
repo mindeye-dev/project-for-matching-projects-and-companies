@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+selenium
+playwright
+python-dotenv
+selenium-stealth
+undetected-chromedriver
+APScheduler 
