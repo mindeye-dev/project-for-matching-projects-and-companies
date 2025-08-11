@@ -1,3 +1,6 @@
+## summary and updated is error
+
+
 import os
 import time
 import requests
@@ -109,82 +112,87 @@ def scrape_detail_page(driver, url):
     fields = {}
 
     try:
+        # title
         # Wait for page to load completely
         WebDriverWait(driver, 50).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
-
-        # Wait until iframe with class "pdf" is present
-        iframe = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "iframe.pdf"))
+        # Wait for the element to be present and visible on the page
+        title_elem = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, ".eib-typography__title"))
         )
-
-        # Switch into iframe
-        driver.switch_to.frame(iframe)
-
-        # Wait for the PDF viewer to be present
-        viewer_elem = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.ID, "viewer"))
+        # Extract and print the visible text
+        fields['title'] = title_elem.text
+        
+        # country
+        # #pipeline-overview, first .bulleted-list--blue, a 
+        # Wait until the #pipeline-overview element is present
+        pipeline_overview = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "pipeline-overview"))
         )
-        # CRITICAL: Wait for PDF content to fully load and render
-        # PDF viewers typically need time to convert PDF to HTML
-        print("Waiting for PDF content to fully render...")
-        # print(viewer_elem.text.strip())
+        # Within that element, find the first .bulleted-list--blue
+        bulleted_list = pipeline_overview.find_element(By.CSS_SELECTOR, ".bulleted-list--blue")
+        # Find the first <a> inside that bulleted list
+        first_link = bulleted_list.find_element(By.TAG_NAME, "a")
+        # Get the text of that <a> element
+        fields["country"] = first_link.text
         
-        # Wait for PDF rendering to complete - look for actual content
-        WebDriverWait(driver, 60).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, "*")) > 10  # Wait for multiple elements to appear
+        # budget
+        # .totalAmount 's next sibling
+        # Find the element with class "totalAmount"
+        total_amount_elem = driver.find_element(By.CSS_SELECTOR, ".totalAmount")
+        # Use JavaScript to get the next sibling element (element node)
+        next_sibling = driver.execute_script("""
+            let elem = arguments[0];
+            let sibling = elem.nextElementSibling;  // gets next element sibling, skips text nodes
+            return sibling;
+        """, total_amount_elem)
+        # Get the text of the next sibling if it exists
+        if next_sibling:
+            fields["budget"] = next_sibling.text
+            print("Text of next sibling:", text)
+        else:
+            print("No next sibling element found after .totalAmount")
+        
+        # sector
+        
+        # summary
+        # #pipeline-overview, div,10 th and 11 th sibling
+        # Find the #pipeline-overview element
+        # pipeline_overview_elem = driver.find_element(By.ID, "pipeline-overview")
+        # # Use XPath to find the 10th following sibling which is a div element
+        # tenth_div_sibling = driver.find_element(
+        #     By.XPATH, "//*[@id='pipeline-overview']/following-sibling::div[10]"
+        # )
+        # eleventh_div_sibling = driver.find_element(
+        #     By.XPATH, "//*[@id='pipeline-overview']/following-sibling::div[11]"
+        # )
+        # # Get its text
+        # fields['summary'] = tenth_div_sibling.text+eleventh_div_sibling
+        
+        print(">>>>> scraping updated date now.")
+        
+        # updated
+        # .pipeline-ref, 4th span
+        # Wait until the .pipeline-ref div is present
+        pipeline_ref = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".pipeline-ref"))
         )
+        # Find all span elements inside .pipeline-ref
+        spans = pipeline_ref.find_elements(By.TAG_NAME, "span")
+        # Iterate to find the span containing "Release date:" and get the next span's text
+        for i, span in enumerate(spans):
+            if span.text.strip() == "Release date:":
+                # The next span holds the date
+                if i + 1 < len(spans):
+                    fields['updated'] = spans[i + 1].text.strip()
+                break
         
-        # Additional wait for PDF-specific content to appear
-        try:
-            # Wait for text content to be available (PDF converted to HTML)
-            WebDriverWait(driver, 30).until(
-                lambda d: len(d.find_element(By.ID, "viewer").text.strip()) > 50
-            )
-            print("PDF content has rendered with sufficient text")
-        except Exception as e:
-            print(f"Warning: PDF text content may not be fully loaded: {e}")
-        
-        # Now extract the rendered HTML content
-        viewer_elem = driver.find_element(By.ID, "viewer")
-        print("Element with id 'viewer':")
-        # print(viewer_elem.text)
-        
-        pdf_text=viewer_elem.text
-        
-        prompt="I will upload contract content. Plz analyze it and then give me project title only. Output must be only project title without any comment and prefix such as `project title:`"
-        fields['title']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me applied country only. Output must be only country name without any comment and prefix such as `country:`"
-        fields['country']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me budget only. Output must be only budget without any comment and prefix such as `budget:`. If budget is not specified, plz return `Not defined`"
-        fields['budget']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
-        fields['sector']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
-        fields['summary']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me last updated date only. Output must be only last updated date without any comment and prefix such as `updated date:`"
-        fields['updated']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me related program and project only. Output must be only related program and project without any comment and prefix such as `related program/project:`"
-        fields['program']=getOpenAIResponse(prompt, pdf_text)
-        
-        print(fields['client'])
-        print(fields['title'])
-        print(fields['country'])
-        print(fields['budget'])
-        print(fields['sector'])
-        print(fields['summary'])
-        print(fields['updated'])
-        print(fields['program'])
+        # program
+        fields['program']="Not defined"
         
     except Exception as e:
-        print(f"Failed to scrape pdf content")
+        print(f"Failed to scrape project content")
 
     # Always switch back to top-level document
     driver.switch_to.default_content()
@@ -252,10 +260,21 @@ def scrape_eib():
                 WebDriverWait(driver, 60).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
+                
+                # Wait until the .search-filter__results element is present and visible
+                search_filter_elem = WebDriverWait(driver, 120).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, ".search-filter__results"))
+                )
+
+                # Scroll the element into view smoothly, centered vertically
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", 
+                    search_filter_elem
+                )
                 # Wait until at least one link appears inside .view-content .field-content
                 # Wait until at least one link appears inside .search-filter__results
                 rows = WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".search-filter__results a"))
+                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".search-filter__results .row-title a"))
                 )
                 print(f"Found {len(rows)} rows:")
                 print(f"Processing {len(rows)} project rows on page {page_num}")

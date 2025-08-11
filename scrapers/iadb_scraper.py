@@ -17,7 +17,7 @@ from selenium.common.exceptions import (
 
 # --- Config ---
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
-WB_URL = "https://projects.worldbank.org/en/projects-operations/projects-home"
+IADB_URL = "https://www.iadb.org/en/projects"
 HEADLESS = os.environ.get("HEADLESS", "0") == "1"
 SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
 
@@ -366,16 +366,16 @@ def parse_opportunity_row(row):
         try:
             if row.tag_name == "a":
                 row_url = row.get_attribute("href")
-                opp["url"] = row_url or WB_URL
+                opp["url"] = row_url or IADB_URL
             else:
                 # Look for links within the row
                 link = row.find_element(By.TAG_NAME, "a")
                 if link:
-                    opp["url"] = link.get_attribute("href") or WB_URL
+                    opp["url"] = link.get_attribute("href") or IADB_URL
                 else:
-                    opp["url"] = WB_URL
+                    opp["url"] = IADB_URL
         except Exception:
-            opp["url"] = WB_URL
+            opp["url"] = IADB_URL
 
         return opp
 
@@ -433,7 +433,7 @@ def find_and_click_next_page(driver):
         return False
 
 
-def scrape_afdb():
+def scrape_iadb():
     """Main function to scrape African Development Bank projects with proper pagination"""
     page_num = 1
     driver = None
@@ -447,7 +447,7 @@ def scrape_afdb():
 
             print(f"Setting up driver for page {page_num}")
             driver = setup_driver()
-            url = WB_URL
+            url = IADB_URL
             print(f"Preparing to scrape WB page {page_num}")
             logging.info(f"Scraping page {page_num}")
 
@@ -549,7 +549,7 @@ def scrape_afdb():
                         print(f"Processing project {i+1}: {opp['title']}")
 
                         # Scrape detail page for more info if a detail link exists
-                        if opp["url"] and opp["url"] != WB_URL:
+                        if opp["url"] and opp["url"] != IADB_URL:
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
@@ -610,7 +610,7 @@ def scrape_afdb():
                 break
 
     except Exception as e:
-        logging.error(f"Fatal error in scrape_afdb: {e}")
+        logging.error(f"Fatal error in scrape_iadb: {e}")
         print(f"Fatal error: {e}")
     finally:
         if driver:
@@ -627,7 +627,7 @@ def scrape_afdb():
 if __name__ == "__main__":
     try:
         print("I am scraping African development bank now.")
-        scrape_afdb()
+        scrape_iadb()
     except Exception as e:
         logging.critical(f"Fatal error: {e}")
         # notify_error(f'African Development Bank scraper fatal error: {e}')

@@ -1,11 +1,15 @@
+1: good
+2: some good
+3: another pc
+4: not found link
 
 Neermal Gowreesunker 10:21 PM
-• World Bank (WB) – https://projects.worldbank.org/en/projects-operations/projects-list?os=0
-• African Development Bank (AfDB) – https://www.afdb.org/en/projects-and-operations/procurement
-• European Investment Bank (EIB) – https://www.eib.org/en/projects/pipelines/index.htm
-• Agence Française de Développement (AFD) – https://www.afd.fr/en/projects/list
+1• World Bank (WB) – https://projects.worldbank.org/en/projects-operations/projects-list?os=0
+1• African Development Bank (AfDB) – https://www.afdb.org/en/projects-and-operations/procurement
+2• European Investment Bank (EIB) – https://www.eib.org/en/projects/pipelines/index.htm
+3• Agence Française de Développement (AFD) – https://www.afd.fr/en/projects/list
 • Islamic Development Bank (IsDB) – https://www.isdb.org/project-procurement/tenders
-//• Proparco – https://www.proparco.fr/en/our-projects
+4//• Proparco – https://www.proparco.fr/en/our-projects
 • KfW Development Bank (Germany) – https://www.kfw-entwicklungsbank.de/Internationale-Finanzierung/KfW-Entwicklungsbank/Projekte/Projektdatenbank/index.jsp
 • United Nations Development Programme (UNDP) – https://procurement-notices.undp.org
 

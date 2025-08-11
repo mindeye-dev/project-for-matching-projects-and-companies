@@ -17,7 +17,7 @@ from selenium.common.exceptions import (
 
 # --- Config ---
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
-WB_URL = "https://projects.worldbank.org/en/projects-operations/projects-home"
+ISDB_URL = "https://www.isdb.org/project-procurement/tenders"
 HEADLESS = os.environ.get("HEADLESS", "0") == "1"
 SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
 
@@ -36,51 +36,6 @@ def notify_error(message):
         except Exception as e:
             logging.error(f"Failed to send Slack notification: {e}")
 
-
-def print_element_html(element, description="Element"):
-    """Utility function to print detailed HTML of a Selenium element"""
-    try:
-        html_content = element.get_attribute("outerHTML")
-        print(f"\n=== DETAILED HTML OF {description.upper()} ===")
-        print(html_content)
-        print(f"=== END OF {description.upper()} HTML ===\n")
-    except Exception as e:
-        print(f"Error printing HTML for {description}: {e}")
-
-
-def wait_for_dynamic_content(driver, timeout=30):
-    """Wait for dynamic content to load on the page"""
-    try:
-        # Wait for any AJAX requests to complete
-        WebDriverWait(driver, timeout).until(
-            lambda d: d.execute_script("return jQuery.active == 0")
-        )
-    except Exception:
-        # jQuery might not be available, continue anyway
-        pass
-
-    try:
-        # Wait for any loading indicators to disappear
-        loading_selectors = [
-            ".loading",
-            ".spinner",
-            ".loader",
-            "[class*='loading']",
-            "[class*='spinner']",
-            "[class*='loader']",
-        ]
-        for selector in loading_selectors:
-            try:
-                WebDriverWait(driver, 5).until(
-                    EC.invisibility_of_element_located((By.CSS_SELECTOR, selector))
-                )
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    # Additional wait for any animations to complete
-    time.sleep(2)
 
 
 def setup_driver(proxy=None):
@@ -366,16 +321,16 @@ def parse_opportunity_row(row):
         try:
             if row.tag_name == "a":
                 row_url = row.get_attribute("href")
-                opp["url"] = row_url or WB_URL
+                opp["url"] = row_url or ISDB_URL
             else:
                 # Look for links within the row
                 link = row.find_element(By.TAG_NAME, "a")
                 if link:
-                    opp["url"] = link.get_attribute("href") or WB_URL
+                    opp["url"] = link.get_attribute("href") or ISDB_URL
                 else:
-                    opp["url"] = WB_URL
+                    opp["url"] = ISDB_URL
         except Exception:
-            opp["url"] = WB_URL
+            opp["url"] = ISDB_URL
 
         return opp
 
@@ -433,7 +388,7 @@ def find_and_click_next_page(driver):
         return False
 
 
-def scrape_afdb():
+def scrape_isdb():
     """Main function to scrape African Development Bank projects with proper pagination"""
     page_num = 1
     driver = None
@@ -447,7 +402,7 @@ def scrape_afdb():
 
             print(f"Setting up driver for page {page_num}")
             driver = setup_driver()
-            url = WB_URL
+            url = ISDB_URL
             print(f"Preparing to scrape WB page {page_num}")
             logging.info(f"Scraping page {page_num}")
 
@@ -478,7 +433,7 @@ def scrape_afdb():
                 # Additional debugging: Check if we're on the right page
                 if (
                     "projects" not in driver.title.lower()
-                    and "world bank" not in driver.title.lower()
+                    and "Islamic Development Bank" not in driver.title.lower()
                 ):
                     print(
                         f"Warning: Page title doesn't seem to be a African Development Bank projects page: {driver.title}"
@@ -549,7 +504,7 @@ def scrape_afdb():
                         print(f"Processing project {i+1}: {opp['title']}")
 
                         # Scrape detail page for more info if a detail link exists
-                        if opp["url"] and opp["url"] != WB_URL:
+                        if opp["url"] and opp["url"] != ISDB_URL:
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
@@ -610,7 +565,7 @@ def scrape_afdb():
                 break
 
     except Exception as e:
-        logging.error(f"Fatal error in scrape_afdb: {e}")
+        logging.error(f"Fatal error in scrape_isdb: {e}")
         print(f"Fatal error: {e}")
     finally:
         if driver:
@@ -627,7 +582,7 @@ def scrape_afdb():
 if __name__ == "__main__":
     try:
         print("I am scraping African development bank now.")
-        scrape_afdb()
+        scrape_isdb()
     except Exception as e:
         logging.critical(f"Fatal error: {e}")
         # notify_error(f'African Development Bank scraper fatal error: {e}')
