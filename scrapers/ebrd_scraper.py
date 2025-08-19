@@ -13,6 +13,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     ElementClickInterceptedException,
 )
+from export_excel import export_excel
 
 
 # --- Config ---
@@ -155,8 +156,8 @@ def scrape_detail_page(driver, url):
     try:
         print("scraping project title")
         title_elem = driver.find_element(
-            By.ID,
-            "projects-title",
+            By.CSS_SELECTOR,
+            ".hero-block__text-wrapper",
         )
         if title_elem:
             print("Found project title")
@@ -166,176 +167,96 @@ def scrape_detail_page(driver, url):
     except Exception:
         fields["title"] = ""
     # client
-    fields["client"] = "African Development Bank"
+    fields["client"] = "European Bank for Reconstruction & Development"
+
+    try:
+        # Wait until the <li> tab is clickable
+        tab_li = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.ID, "customtab-8dfd7f8cd9-item-f0008af8f1-tab")
+            )
+        )
+        print("Found tab")
+        print(tab_li.text)
+        # Click on the element
+        tab_li.click()
+
+        wait = WebDriverWait(driver, 10)
+    except Exception:
+        print("Error in waiting for clicking tab")
 
     # country
     try:
-        # Wait until at least one country link is present
-        WebDriverWait(driver, 10).until(
+        elements = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, "a.dropdown-item[href*='/country/']")
+                (By.CSS_SELECTOR, ".project-overview__card-description")
             )
         )
-        # Find all country links
-        elements = driver.find_elements(
-            By.CSS_SELECTOR, "a[href*='www.worldbank.org/en/country/']"
-        )
-        for elem in elements:
-            text = elem.text.strip()
-            if text:  # ignore blank
-                fields["country"] = text
-    except Exception:
+        for i, row in enumerate(elements):
+            print(row.text.strip())
+
+        fields["country"] = elements[3].text.strip()
+
+    except Exception as e:
+        print("error in extracting text {e}")
         fields["country"] = ""
 
     # budget
     try:
-        # Wait until the main-detail element is present
-        main_detail = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".main-detail"))
+        elements = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, ".text-block__details")
+            )
         )
 
-        # Find all <ul> children inside main-detail
-        ul_elements = main_detail.find_elements(By.TAG_NAME, "ul")
-
-        # Check if there are at least 4 ul elements
-        if len(ul_elements) >= 4:
-            fourth_ul = ul_elements[3]  # zero-based index
-
-            # Find first <li> inside fourth ul
-            first_li = fourth_ul.find_element(By.TAG_NAME, "li")
-
-            # Find the <p> inside the first li
-            p_elem = first_li.find_element(By.TAG_NAME, "p")
-
-            # Get the text content
+        if len(elements) >= 7:
+            element_7th = elements[6]  # 0-based index
+            # Now find the first <p> inside that element
+            p_elem = element_7th.find_element(By.CSS_SELECTOR, "p:first-of-type")
+            print(p_elem.text.strip())
+            print("found budget", element_7th.text.strip())
             fields["budget"] = p_elem.text.strip()
-            print("Extracted text:", text)
         else:
-            print("Less than 4 <ul> elements found inside .main-detail")
-
+            print("Less than 7 elements with class .text-block__details found")
     except Exception as e:
-        print(f"Error extracting text: {e}")
+        print(f"Error extracting text of budget: {e}")
 
     # sector
     try:
-        # Wait until the main-detail element is present
-        main_detail = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".main-detail"))
+        elements = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, ".project-overview__card-description")
+            )
         )
+        for i, row in enumerate(elements):
+            print(row.text.strip())
 
-        # Find all <ul> children inside main-detail
-        ul_elements = main_detail.find_elements(By.TAG_NAME, "ul")
-
-        # Check if there are at least 4 ul elements
-        if len(ul_elements) >= 3:
-            fourth_ul = ul_elements[2]  # zero-based index
-
-            # Find second <li> inside fourth ul
-            second_li = fourth_ul.find_elements(By.TAG_NAME, "li")[1]
-
-            # Find the <p> inside the first li
-            p_elem = second_li.find_element(By.TAG_NAME, "p")
-
-            # Get the text content
-            fields["sector"] = p_elem.text.strip()
-            print("Extracted text:", text)
-        else:
-            print("Less than 3 <ul> elements found inside .main-detail")
-
-    except Exception as e:
-        print(f"Error extracting text: {e}")
+        fields["sector"] = elements[4].text.strip()
+    except Exception:
+        fields["sector"] = ""
 
     # Summary of requested services
-    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, a  // show more button
-    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, first text  
-    # 1. Try clicking the "Show more" button if it exists
     try:
-        # Wait until the <a> element is clickable
-        show_more_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((
-                By.XPATH,
-                "//section[@id='abstract']//div[contains(@class,'container')]/div[contains(@class,'row')][2]//div[contains(@class,'_loop_lead_paragraph_sm')]//a"
-            ))
-        )
-        show_more_link.click()
-        print("Clicked the 'Show More' link inside abstract.")
+        elements = driver.find_elements(By.CSS_SELECTOR, ".mainbodytextunit")
+        combined_text = "\n".join(elem.text for elem in elements)
+        fields["summary"] = combined_text.strip()
     except Exception as e:
-        print(f"Failed to click the link: {e}")
-    try:
-        # Wait until #abstract is present
-        abstract = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "abstract"))
-        )
-
-        # Find .container inside #abstract
-        container = abstract.find_element(By.CLASS_NAME, "container")
-
-        # Find all .row inside container
-        rows = container.find_elements(By.CLASS_NAME, "row")
-
-        if len(rows) >= 2:
-            second_row = rows[1]
-
-            # Find element with class _loop_lead_paragraph_sm inside second row
-            target_elem = second_row.find_element(By.CLASS_NAME, "_loop_lead_paragraph_sm")
-
-            # Get the first direct text node inside target_elem using JavaScript execution
-            first_text = driver.execute_script("""
-                var elem = arguments[0];
-                for (var i = 0; i < elem.childNodes.length; i++) {
-                    var node = elem.childNodes[i];
-                    if (node.nodeType === Node.TEXT_NODE) {
-                        var text = node.textContent.trim();
-                        if(text.length > 0){
-                            return text;
-                        }
-                    }
-                }
-                return '';
-            """, target_elem)
-
-            fields["summary"]=first_text
-        else:
-            print("Less than 2 .row elements inside .container")
-
-    except Exception as e:
-        print("Error:", e)
+        print(f"Error extracting text of summary: {e}")
 
     # Submission deadline
-    # .main-detail, fifth .row, third li, p 
+    # .main-detail, fifth .row, third li, p
     try:
-        # Wait until .main-detail is present
-        main_detail = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".main-detail"))
+        elements = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, ".project-overview__card-description")
+            )
         )
+        for i, row in enumerate(elements):
+            print(row.text.strip())
 
-        # Find all .row children inside .main-detail
-        rows = main_detail.find_elements(By.CSS_SELECTOR, ".row")
-
-        # Check if we have at least 5 rows
-        if len(rows) >= 5:
-            fifth_row = rows[4]  # zero-based index
-
-            # Find all <li> elements inside the fifth row
-            li_elements = fifth_row.find_elements(By.TAG_NAME, "li")
-
-            # Check if we have at least 3 <li> elements
-            if len(li_elements) >= 3:
-                third_li = li_elements[2]
-
-                # Find the <p> inside this li
-                p_elem = third_li.find_element(By.TAG_NAME, "p")
-
-                # Extract and print the text
-                text = p_elem.text.strip()
-                fields["updated"] = text
-            else:
-                print("Less than 3 <li> elements found in fifth .row")
-        else:
-            print("Less than 5 .row elements found inside .main-detail")
-
+        fields["deadline"] = elements[8].text.strip()
     except Exception as e:
-        print(f"Error extracting text: {e}")
+        print(f"Error extracting text of deadline: {e}")
 
     # Program/Project
     fields["program"] = ""
@@ -352,12 +273,12 @@ def parse_opportunity_row(row):
         # Initialize opportunity data
         opp = {
             "title": "",
-            "client": "African Development Bank",
+            "client": "European Bank for Reconstruction & Development",
             "country": "",
             "budget": "",
             "sector": "",
             "summary": "",
-            "updated": "",
+            "deadline": "",
             "program": "",
             "url": "",
         }
@@ -434,7 +355,7 @@ def find_and_click_next_page(driver):
 
 
 def scrape_ebrd():
-    """Main function to scrape African Development Bank projects with proper pagination"""
+    """Main function to scrape European Bank for Reconstruction & Development projects with proper pagination"""
     page_num = 1
     driver = None
     total_projects = 0
@@ -475,67 +396,12 @@ def scrape_ebrd():
                 print(f"Page title: {driver.title}")
                 print(f"Current URL: {driver.current_url}")
 
-                # Additional debugging: Check if we're on the right page
-                if (
-                    "projects" not in driver.title.lower()
-                    and "European Bank for Reconstruction & Development" not in driver.title.lower()
-                ):
-                    print(
-                        f"Warning: Page title doesn't seem to be a African Development Bank projects page: {driver.title}"
+                rows = WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, ".search-result__result-card")
                     )
-
-                # Try multiple approaches to find project data
-                project_data = None
-
-                # First, try to find the main project container
-                selectors = [
-                    (By.CLASS_NAME, "project_recentdata"),
-                ]
-
-                for selector_type, selector in selectors:
-                    try:
-                        project_temp_data = driver.find_element(selector_type, selector)
-                        # Scroll the element into view
-                        driver.execute_script(
-                            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
-                            project_temp_data,
-                        )
-                        WebDriverWait(driver, 15).until(
-                            EC.presence_of_all_elements_located(
-                                (By.CSS_SELECTOR, ".project_recentdata a")
-                            )
-                        )
-                        project_data = driver.find_element(selector_type, selector)
-
-                        print(f"Found project data using {selector_type}: {selector}")
-                        print(f"Element tag: {project_data.tag_name}")
-                        print(f"Element class: {project_data.get_attribute('class')}")
-                        print(f"Element text length: {len(project_data.text)}")
-                        break
-                    except Exception as e:
-                        print(f"Selector {selector_type}: {selector} failed: {e}")
-                        continue
-
-                print("Project data container found.")
-
-                # Try multiple approaches to find project links/rows
-                rows = []
-
-                # Method 1: Look for links directly
-                print(
-                    "---------------Preparing to get project links directly.-------------"
                 )
-                try:
-                    rows = project_data.find_elements(By.TAG_NAME, "a")
-
-                    print(f"Found {len(rows)} links directly")
-                except Exception:
-                    print("No links found directly")
-
-                print(f"Processing {len(rows)} project rows on page {page_num}")
-
-                # Process each row
-                page_projects = 0
+                opps = []
                 for i, row in enumerate(rows):
                     try:
                         print(row)
@@ -553,6 +419,7 @@ def scrape_ebrd():
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
+                                opps.append(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
@@ -578,6 +445,7 @@ def scrape_ebrd():
                         print(f"Error processing row {i+1}: {e}")
                         continue
 
+                export_excel("./excel/ebrd.xlsx", opps)
                 print(f"Page {page_num} completed: {page_projects} projects processed")
                 print(f"Total projects processed so far: {total_projects}")
 
@@ -626,8 +494,8 @@ def scrape_ebrd():
 
 if __name__ == "__main__":
     try:
-        print("I am scraping African development bank now.")
+        print("I am scraping European Bank for Reconstruction & Development now.")
         scrape_ebrd()
     except Exception as e:
         logging.critical(f"Fatal error: {e}")
-        # notify_error(f'African Development Bank scraper fatal error: {e}')
+        # notify_error(f'European Bank for Reconstruction & Development scraper fatal error: {e}')

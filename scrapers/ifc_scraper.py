@@ -13,11 +13,12 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     ElementClickInterceptedException,
 )
+from export_excel import export_excel
 
 
 # --- Config ---
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
-IFC_URL = "https://disclosures.ifc.org"
+IFC_URL = "https://disclosures.ifc.org/enterprise-search-results-home?f_type_description=Investment"
 HEADLESS = os.environ.get("HEADLESS", "0") == "1"
 SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
 
@@ -153,37 +154,31 @@ def scrape_detail_page(driver, url):
     fields = {}
     # title
     try:
-        print("scraping project title")
-        title_elem = driver.find_element(
-            By.ID,
-            "projects-title",
-        )
-        if title_elem:
-            print("Found project title")
+        # h1_element = WebDriverWait(driver, 10).until(
+        #     EC.presence_of_element_located((By.CSS_SELECTOR, 'h1[_ngcontent-serverapp-c68=""]'))
+        # )
+        # fields["title"] = h1_element.text.strip()
 
-        print(title_elem.text.strip())
-        fields["title"] = title_elem.text.strip()
+        ath_link = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
+        )
+        print(ath_link.text.strip())
+        fields["title"] = ath_link.text.strip()
     except Exception:
         fields["title"] = ""
+        print("failed to scrape title")
     # client
-    fields["client"] = "African Development Bank"
+    fields["client"] = "International Finance Corporation"
 
     # country
     try:
-        # Wait until at least one country link is present
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, "a.dropdown-item[href*='/country/']")
+        # Locate the div with class 'esrs-value' and attribute '_ngcontent-serverapp-c60'
+        element = wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div.esrs-value[_ngcontent-serverapp-c60]")
             )
         )
-        # Find all country links
-        elements = driver.find_elements(
-            By.CSS_SELECTOR, "a[href*='www.worldbank.org/en/country/']"
-        )
-        for elem in elements:
-            text = elem.text.strip()
-            if text:  # ignore blank
-                fields["country"] = text
+        fields["country"] = element.text.strip()
     except Exception:
         fields["country"] = ""
 
@@ -247,15 +242,17 @@ def scrape_detail_page(driver, url):
 
     # Summary of requested services
     # #abstract, .container, second .row, ._loop_lead_paragraph_sm, a  // show more button
-    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, first text  
+    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, first text
     # 1. Try clicking the "Show more" button if it exists
     try:
         # Wait until the <a> element is clickable
         show_more_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((
-                By.XPATH,
-                "//section[@id='abstract']//div[contains(@class,'container')]/div[contains(@class,'row')][2]//div[contains(@class,'_loop_lead_paragraph_sm')]//a"
-            ))
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    "//section[@id='abstract']//div[contains(@class,'container')]/div[contains(@class,'row')][2]//div[contains(@class,'_loop_lead_paragraph_sm')]//a",
+                )
+            )
         )
         show_more_link.click()
         print("Clicked the 'Show More' link inside abstract.")
@@ -277,10 +274,13 @@ def scrape_detail_page(driver, url):
             second_row = rows[1]
 
             # Find element with class _loop_lead_paragraph_sm inside second row
-            target_elem = second_row.find_element(By.CLASS_NAME, "_loop_lead_paragraph_sm")
+            target_elem = second_row.find_element(
+                By.CLASS_NAME, "_loop_lead_paragraph_sm"
+            )
 
             # Get the first direct text node inside target_elem using JavaScript execution
-            first_text = driver.execute_script("""
+            first_text = driver.execute_script(
+                """
                 var elem = arguments[0];
                 for (var i = 0; i < elem.childNodes.length; i++) {
                     var node = elem.childNodes[i];
@@ -292,9 +292,11 @@ def scrape_detail_page(driver, url):
                     }
                 }
                 return '';
-            """, target_elem)
+            """,
+                target_elem,
+            )
 
-            fields["summary"]=first_text
+            fields["summary"] = first_text
         else:
             print("Less than 2 .row elements inside .container")
 
@@ -302,7 +304,7 @@ def scrape_detail_page(driver, url):
         print("Error:", e)
 
     # Submission deadline
-    # .main-detail, fifth .row, third li, p 
+    # .main-detail, fifth .row, third li, p
     try:
         # Wait until .main-detail is present
         main_detail = WebDriverWait(driver, 10).until(
@@ -328,7 +330,7 @@ def scrape_detail_page(driver, url):
 
                 # Extract and print the text
                 text = p_elem.text.strip()
-                fields["updated"] = text
+                fields["deadline"] = text
             else:
                 print("Less than 3 <li> elements found in fifth .row")
         else:
@@ -352,12 +354,12 @@ def parse_opportunity_row(row):
         # Initialize opportunity data
         opp = {
             "title": "",
-            "client": "African Development Bank",
+            "client": "International Finance Corporation",
             "country": "",
             "budget": "",
             "sector": "",
             "summary": "",
-            "updated": "",
+            "deadline": "",
             "program": "",
             "url": "",
         }
@@ -434,7 +436,7 @@ def find_and_click_next_page(driver):
 
 
 def scrape_ifc():
-    """Main function to scrape African Development Bank projects with proper pagination"""
+    """Main function to scrape International Finance Corporation projects with proper pagination"""
     page_num = 1
     driver = None
     total_projects = 0
@@ -475,67 +477,17 @@ def scrape_ifc():
                 print(f"Page title: {driver.title}")
                 print(f"Current URL: {driver.current_url}")
 
-                # Additional debugging: Check if we're on the right page
-                if (
-                    "projects" not in driver.title.lower()
-                    and "International Finance Corporation" not in driver.title.lower()
-                ):
-                    print(
-                        f"Warning: Page title doesn't seem to be a African Development Bank projects page: {driver.title}"
+                # Wait until at least one <a> inside .projects inside .row.margin-top15 exists
+                rows = WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located(
+                        (
+                            By.CSS_SELECTOR,
+                            ".row.margin-top15.projects .col-12.padding-top5 a",
+                        )
                     )
-
-                # Try multiple approaches to find project data
-                project_data = None
-
-                # First, try to find the main project container
-                selectors = [
-                    (By.CLASS_NAME, "project_recentdata"),
-                ]
-
-                for selector_type, selector in selectors:
-                    try:
-                        project_temp_data = driver.find_element(selector_type, selector)
-                        # Scroll the element into view
-                        driver.execute_script(
-                            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
-                            project_temp_data,
-                        )
-                        WebDriverWait(driver, 15).until(
-                            EC.presence_of_all_elements_located(
-                                (By.CSS_SELECTOR, ".project_recentdata a")
-                            )
-                        )
-                        project_data = driver.find_element(selector_type, selector)
-
-                        print(f"Found project data using {selector_type}: {selector}")
-                        print(f"Element tag: {project_data.tag_name}")
-                        print(f"Element class: {project_data.get_attribute('class')}")
-                        print(f"Element text length: {len(project_data.text)}")
-                        break
-                    except Exception as e:
-                        print(f"Selector {selector_type}: {selector} failed: {e}")
-                        continue
-
-                print("Project data container found.")
-
-                # Try multiple approaches to find project links/rows
-                rows = []
-
-                # Method 1: Look for links directly
-                print(
-                    "---------------Preparing to get project links directly.-------------"
                 )
-                try:
-                    rows = project_data.find_elements(By.TAG_NAME, "a")
 
-                    print(f"Found {len(rows)} links directly")
-                except Exception:
-                    print("No links found directly")
-
-                print(f"Processing {len(rows)} project rows on page {page_num}")
-
-                # Process each row
-                page_projects = 0
+                opps = []
                 for i, row in enumerate(rows):
                     try:
                         print(row)
@@ -553,6 +505,7 @@ def scrape_ifc():
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
+                                opps.append(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
@@ -578,6 +531,7 @@ def scrape_ifc():
                         print(f"Error processing row {i+1}: {e}")
                         continue
 
+                export_excel("./excel/ifc.xlsx", opps)
                 print(f"Page {page_num} completed: {page_projects} projects processed")
                 print(f"Total projects processed so far: {total_projects}")
 
@@ -626,8 +580,8 @@ def scrape_ifc():
 
 if __name__ == "__main__":
     try:
-        print("I am scraping African development bank now.")
+        print("I am scraping International Finance Corporation now.")
         scrape_ifc()
     except Exception as e:
         logging.critical(f"Fatal error: {e}")
-        # notify_error(f'African Development Bank scraper fatal error: {e}')
+        # notify_error(f'International Finance Corporation scraper fatal error: {e}')

@@ -13,6 +13,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     ElementClickInterceptedException,
 )
+from export_excel import export_excel
 
 
 # --- Config ---
@@ -247,15 +248,17 @@ def scrape_detail_page(driver, url):
 
     # Summary of requested services
     # #abstract, .container, second .row, ._loop_lead_paragraph_sm, a  // show more button
-    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, first text  
+    # #abstract, .container, second .row, ._loop_lead_paragraph_sm, first text
     # 1. Try clicking the "Show more" button if it exists
     try:
         # Wait until the <a> element is clickable
         show_more_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((
-                By.XPATH,
-                "//section[@id='abstract']//div[contains(@class,'container')]/div[contains(@class,'row')][2]//div[contains(@class,'_loop_lead_paragraph_sm')]//a"
-            ))
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    "//section[@id='abstract']//div[contains(@class,'container')]/div[contains(@class,'row')][2]//div[contains(@class,'_loop_lead_paragraph_sm')]//a",
+                )
+            )
         )
         show_more_link.click()
         print("Clicked the 'Show More' link inside abstract.")
@@ -277,10 +280,13 @@ def scrape_detail_page(driver, url):
             second_row = rows[1]
 
             # Find element with class _loop_lead_paragraph_sm inside second row
-            target_elem = second_row.find_element(By.CLASS_NAME, "_loop_lead_paragraph_sm")
+            target_elem = second_row.find_element(
+                By.CLASS_NAME, "_loop_lead_paragraph_sm"
+            )
 
             # Get the first direct text node inside target_elem using JavaScript execution
-            first_text = driver.execute_script("""
+            first_text = driver.execute_script(
+                """
                 var elem = arguments[0];
                 for (var i = 0; i < elem.childNodes.length; i++) {
                     var node = elem.childNodes[i];
@@ -292,9 +298,11 @@ def scrape_detail_page(driver, url):
                     }
                 }
                 return '';
-            """, target_elem)
+            """,
+                target_elem,
+            )
 
-            fields["summary"]=first_text
+            fields["summary"] = first_text
         else:
             print("Less than 2 .row elements inside .container")
 
@@ -302,7 +310,7 @@ def scrape_detail_page(driver, url):
         print("Error:", e)
 
     # Submission deadline
-    # .main-detail, fifth .row, third li, p 
+    # .main-detail, fifth .row, third li, p
     try:
         # Wait until .main-detail is present
         main_detail = WebDriverWait(driver, 10).until(
@@ -328,7 +336,7 @@ def scrape_detail_page(driver, url):
 
                 # Extract and print the text
                 text = p_elem.text.strip()
-                fields["updated"] = text
+                fields["deadline"] = text
             else:
                 print("Less than 3 <li> elements found in fifth .row")
         else:
@@ -357,7 +365,7 @@ def parse_opportunity_row(row):
             "budget": "",
             "sector": "",
             "summary": "",
-            "updated": "",
+            "deadline": "",
             "program": "",
             "url": "",
         }
@@ -536,6 +544,7 @@ def scrape_afdb():
 
                 # Process each row
                 page_projects = 0
+                opps = []
                 for i, row in enumerate(rows):
                     try:
                         print(row)
@@ -553,6 +562,7 @@ def scrape_afdb():
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
+                                opps.append(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
@@ -578,6 +588,7 @@ def scrape_afdb():
                         print(f"Error processing row {i+1}: {e}")
                         continue
 
+                export_excel("./excel/proparco.xlsx", opps)
                 print(f"Page {page_num} completed: {page_projects} projects processed")
                 print(f"Total projects processed so far: {total_projects}")
 

@@ -6,3 +6,5 @@ python-dotenv
 selenium-stealth
 undetected-chromedriver
 APScheduler 
+OpenAI
+dotenv

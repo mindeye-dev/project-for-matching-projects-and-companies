@@ -4,6 +4,7 @@ import requests
 import logging
 from openai import OpenAI
 from dotenv import load_dotenv
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -19,6 +20,7 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException,
 )
 
+from export_excel import export_excel
 
 # --- Config ---
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
@@ -149,21 +151,22 @@ def extract_field_by_label(driver, label_texts):
             pass
     return ""
 
+
 def getOpenAIResponse(prompt, query):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
+
     # Send a chat completion request
     response = client.chat.completions.create(
         model="gpt-4o-mini",  # You can use "gpt-4o", "gpt-3.5-turbo", etc.
         messages=[
             {"role": "system", "content": prompt},
-            {"role": "user", "content": query}
+            {"role": "user", "content": query},
         ],
         temperature=0.7,  # Controls creativity; 0.0 = strict, 1.0 = more creative
     )
 
     # Print the result
-    return (response.choices[0].message.content)
+    return response.choices[0].message.content
 
 
 def scrape_detail_page(driver, url):
@@ -194,12 +197,13 @@ def scrape_detail_page(driver, url):
         # PDF viewers typically need time to convert PDF to HTML
         print("Waiting for PDF content to fully render...")
         # print(viewer_elem.text.strip())
-        
+
         # Wait for PDF rendering to complete - look for actual content
         WebDriverWait(driver, 60).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, "*")) > 10  # Wait for multiple elements to appear
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "*"))
+            > 10  # Wait for multiple elements to appear
         )
-        
+
         # Additional wait for PDF-specific content to appear
         try:
             # Wait for text content to be available (PDF converted to HTML)
@@ -209,50 +213,50 @@ def scrape_detail_page(driver, url):
             print("PDF content has rendered with sufficient text")
         except Exception as e:
             print(f"Warning: PDF text content may not be fully loaded: {e}")
-        
+
         # Now extract the rendered HTML content
         viewer_elem = driver.find_element(By.ID, "viewer")
         print("Element with id 'viewer':")
         # print(viewer_elem.text)
-        
-        pdf_text=viewer_elem.text
-        
-        prompt="I will upload contract content. Plz analyze it and then give me project title only. Output must be only project title without any comment and prefix such as `project title:`"
-        fields['title']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me applied country only. Output must be only country name without any comment and prefix such as `country:`"
-        fields['country']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me budget only. Output must be only budget without any comment and prefix such as `budget:`. If budget is not specified, plz return `Not defined`"
-        fields['budget']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
-        fields['sector']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
-        fields['summary']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me last updated date only. Output must be only last updated date without any comment and prefix such as `updated date:`"
-        fields['updated']=getOpenAIResponse(prompt, pdf_text)
-        
-        prompt="I will upload contract content. Plz analyze it and then give me related program and project only. Output must be only related program and project without any comment and prefix such as `related program/project:`"
-        fields['program']=getOpenAIResponse(prompt, pdf_text)
-        
-        print(fields['client'])
-        print(fields['title'])
-        print(fields['country'])
-        print(fields['budget'])
-        print(fields['sector'])
-        print(fields['summary'])
-        print(fields['updated'])
-        print(fields['program'])
-        
+
+        pdf_text = viewer_elem.text
+
+        prompt = "I will upload contract content. Plz analyze it and then give me project title only. Output must be only project title without any comment and prefix such as `project title:`"
+        fields["title"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "I will upload contract content. Plz analyze it and then give me applied country only. Output must be only country name without any comment and prefix such as `country:`"
+        fields["country"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "You are given a contract document. Extract the contract budget only.  Return the budget amount exactly as written in the document (e.g., `US$317.5 million`).  If no budget is mentioned, return only `Not defined`.  Do not add any comments, explanations, or prefixes."
+        fields["budget"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
+        fields["sector"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
+        fields["summary"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "I will upload contract content. Plz analyze it and then give me last deadline date only. Output must be only last deadline date without any comment and prefix such as `deadline date:`"
+        fields["deadline"] = getOpenAIResponse(prompt, pdf_text)
+
+        prompt = "I will upload contract content. Plz analyze it and then give me related program and project only. Output must be only related program and project without any comment and prefix such as `related program/project:`"
+        fields["program"] = getOpenAIResponse(prompt, pdf_text)
+
+        print(fields["client"])
+        print(fields["title"])
+        print(fields["country"])
+        print(fields["budget"])
+        print(fields["sector"])
+        print(fields["summary"])
+        print(fields["deadline"])
+        print(fields["program"])
+
     except Exception as e:
         print(f"Failed to scrape pdf content")
 
     # Always switch back to top-level document
     driver.switch_to.default_content()
-    
+
     driver.close()
     driver.switch_to.window(driver.window_handles[0])
     return fields
@@ -268,7 +272,7 @@ def parse_opportunity_row(row):
             "budget": "",
             "sector": "",
             "summary": "",
-            "updated": "",
+            "deadline": "",
             "program": "",
             "url": "",
         }
@@ -360,20 +364,24 @@ def scrape_afdb():
 
             try:
                 driver.get(url)
-                
+
                 # Wait until readyState == 'complete' (DOM + resources loaded)
                 WebDriverWait(driver, 60).until(
-                    lambda d: d.execute_script("return document.readyState") == "complete"
+                    lambda d: d.execute_script("return document.readyState")
+                    == "complete"
                 )
                 # Wait until at least one link appears inside .view-content .field-content
                 rows = WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".view-content .field-content a"))
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, ".view-content .field-content a")
+                    )
                 )
                 print(f"Found {len(rows)} rows:")
                 print(f"Processing {len(rows)} project rows on page {page_num}")
 
                 # Process each row
                 page_projects = 0
+                opps = []
                 for i, row in enumerate(rows):
                     try:
                         print(row)
@@ -391,6 +399,7 @@ def scrape_afdb():
                             try:
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
+                                opps.append(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
@@ -400,6 +409,8 @@ def scrape_afdb():
                     except Exception as e:
                         print(f"Error processing row {i+1}: {e}")
                         continue
+
+                export_excel("./excel/afdb.xlsx", opps)
             except Exception as e:
                 logging.error(f"Error scraping page {page_num}: {e}")
                 print(f"Error on page {page_num}: {e}")
