@@ -1,5 +1,6 @@
 # Environment files (never commit secrets)
-scrapers/.env
+scrapers_of_projects/.env
+scrapers_of_companies/.env
 backend/.env
 bot/.env
 
@@ -11,8 +12,9 @@ node_modules/
 # Ignore generated scraped data
 scraped fields/
 
+
 # Python cache
 __pycache__/
-*.pyc
+*.pyc 
 
 # (requirements.txt should be tracked — remove from ignore unless intentional)

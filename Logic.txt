@@ -1,0 +1,5 @@
+1. Scrape projects from banks.
+2. find suitable companies from linkedin per project.
+3. scrape company websites and then filter 3 best matched companies. 
+
+4. set chatting interface that suggests related projects.
