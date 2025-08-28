@@ -1,5 +1,22 @@
 1. Scrape projects from banks.
 2. find suitable companies from linkedin per project.
+https://directory.africa-business.com/search?keyword=&country_type=a&category=electronics-electrical-africa&country=144
+
 3. scrape company websites and then filter 3 best matched companies. 
 
 4. set chatting interface that suggests related projects.
+
+
+
+
+Total logic are following.
+
+-Authentication.
+THere are admin and user.
+User can sign up and log in to this site.
+- Scraping projects from banks.
+There are several bank's list.
+User click scrape projects per banks.
+And then it starts to scrape projects.
+- Matching companies per project.
+There are several bank's list.

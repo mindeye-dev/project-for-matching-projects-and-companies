@@ -1,6 +1,6 @@
 # Environment files (never commit secrets)
 scrapers_of_projects/.env
-scrapers_of_companies/.env
+scrapers_score_of_companies/.env
 backend/.env
 bot/.env
 
