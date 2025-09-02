@@ -1,6 +1,9 @@
-from . import db
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
 
 class Opportunity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,7 +16,8 @@ class Opportunity(db.Model):
     program = db.Column(db.String(256))
     budget = db.Column(db.String(64))
     url = db.Column(db.String(512))
-    score = db.Column(db.Integer)
+    found = db.Column(db.Boolean, default=False, nullable=False)
+
 
 class Partner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -22,15 +26,17 @@ class Partner(db.Model):
     sector = db.Column(db.String(128))
     website = db.Column(db.String(512))
 
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(32), default='user')  # 'user' or 'admin'
+    role = db.Column(db.String(32), default="user")  # 'user' or 'admin'
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_login = db.Column(db.DateTime)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password) 
+        return check_password_hash(self.password_hash, password)

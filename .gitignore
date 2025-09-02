@@ -1,11 +1,11 @@
 # Environment files (never commit secrets)
-scrapers_of_projects/.env
-scrapers_score_of_companies/.env
+backend/app/scrapers_of_projects/.env
+backend/app/scrapers_score_of_companies/.env
 backend/.env
 bot/.env
 
 # Node dependencies
-frontend/node_modules/
+frontend/global-roads-scout/node_modules/
 backend/node_modules/
 node_modules/
 

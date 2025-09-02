@@ -19,4 +19,12 @@ There are several bank's list.
 User click scrape projects per banks.
 And then it starts to scrape projects.
 - Matching companies per project.
-There are several bank's list.
+There is card of project.
+There is find 3 suitable companies button.
+If user click it. It starts to find 3 suitable companies.
+If completed to find 3 suitable companies, it will be saved to database by sending to backend.
+
+- Chatting
+User can ask about project and instruct to find suitable projects and suitble 3 projects.
+And user can ask about to give excel file for projects and suitable companies.
+And this must give that excel file and suitable companies.
