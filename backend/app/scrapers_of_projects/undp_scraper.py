@@ -1,31 +1,29 @@
-import os
 import time
 import requests
 import logging
-from openai import OpenAI
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-from selenium import webdriver
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium_stealth import stealth
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
-    ElementClickInterceptedException,
-)
-from export_excel import export_excel
 
+
+from scraper_helpers import (
+    setup_driver,
+    export_excel,
+    notify_error,
+    print_element_html,
+    getOpenAIResponse,
+    solve_cloudflare_captcha,
+    is_cloudflare_captcha_present,
+    is_captcha_present,
+)
+
+
+# do not need to control page number as all projects are in one page
 
 # --- Config ---
-BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
 UNDP_URL = "https://procurement-notices.undp.org"
-HEADLESS = os.environ.get("HEADLESS", "0") == "1"
-SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
 
 # --- Logging ---
 logging.basicConfig(
@@ -33,25 +31,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s:%(message)s",
 )
-
-
-def notify_error(message):
-    if SLACK_WEBHOOK:
-        try:
-            requests.post(SLACK_WEBHOOK, json={"text": message})
-        except Exception as e:
-            logging.error(f"Failed to send Slack notification: {e}")
-
-
-def print_element_html(element, description="Element"):
-    """Utility function to print detailed HTML of a Selenium element"""
-    try:
-        html_content = element.get_attribute("outerHTML")
-        print(f"\n=== DETAILED HTML OF {description.upper()} ===")
-        print(html_content)
-        print(f"=== END OF {description.upper()} HTML ===\n")
-    except Exception as e:
-        print(f"Error printing HTML for {description}: {e}")
 
 
 def wait_for_dynamic_content(driver, timeout=30):
@@ -87,85 +66,6 @@ def wait_for_dynamic_content(driver, timeout=30):
 
     # Additional wait for any animations to complete
     time.sleep(2)
-
-
-def getOpenAIResponse(prompt, query):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    # Send a chat completion request
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",  # You can use "gpt-4o", "gpt-3.5-turbo", etc.
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": query},
-        ],
-        temperature=0.7,  # Controls creativity; 0.0 = strict, 1.0 = more creative
-    )
-
-    # Print the result
-    return response.choices[0].message.content
-
-
-def setup_driver(proxy=None):
-    options = FirefoxOptions()
-    print("--setting up driver--1")
-    if HEADLESS:
-        options.add_argument("--headless")
-
-    # Enhanced stealth settings
-    options.set_preference("dom.webdriver.enabled", False)
-    options.set_preference("useAutomationExtension", False)
-    options.set_preference(
-        "general.useragent.override",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    )
-
-    # Additional stealth preferences
-    options.set_preference("dom.webnotifications.enabled", False)
-    options.set_preference("media.volume_scale", "0.0")
-    options.set_preference("network.proxy.type", 0)
-    options.set_preference("privacy.resistFingerprinting", False)
-    options.set_preference("browser.cache.disk.enable", False)
-    options.set_preference("browser.cache.memory.enable", False)
-
-    print("--setting up driver--2")
-
-    # Create the Firefox driver
-    driver = webdriver.Firefox(options=options)
-
-    # Enhanced stealth: remove webdriver properties
-    print("--setting up driver--3")
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'webdriver', {get: ()=> undefined})"
-    )
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'plugins', {get: ()=> [1, 2, 3, 4, 5]})"
-    )
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'languages', {get: ()=> ['en-US', 'en']})"
-    )
-
-    print("--setting up driver--4")
-    return driver
-
-
-def extract_field_by_label(driver, label_texts):
-    for label in label_texts:
-        try:
-            elem = driver.find_element(
-                By.XPATH, f"//*[contains(text(),'{label}')]/following-sibling::*[1]"
-            )
-            return elem.text.strip()
-        except Exception:
-            pass
-        try:
-            elem = driver.find_element(
-                By.XPATH, f"//tr[th[contains(text(),'{label}')]]/td"
-            )
-            return elem.text.strip()
-        except Exception:
-            pass
-    return ""
 
 
 def scrape_detail_page(driver, url):

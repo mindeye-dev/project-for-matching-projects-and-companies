@@ -1,35 +1,27 @@
-## summary and deadline is error
-
-
-import os
-import time
-import requests
 import logging
-from openai import OpenAI
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
 
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium_stealth import stealth
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
-    ElementClickInterceptedException,
-)
-from export_excel import export_excel
 
+
+from scraper_helpers import (
+    setup_driver,
+    export_excel,
+    notify_error,
+    print_element_html,
+    getOpenAIResponse,
+    solve_cloudflare_captcha,
+    is_cloudflare_captcha_present,
+    is_captcha_present,
+)
+
+
+# must click page element
 
 # --- Config ---
-BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
 EIB_URL = "https://www.eib.org/en/projects/pipelines/index.htm"
-HEADLESS = os.environ.get("HEADLESS", "0") == "1"
-SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
 
 # --- Logging ---
 logging.basicConfig(
@@ -37,74 +29,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s:%(message)s",
 )
-
-
-def notify_error(message):
-    if SLACK_WEBHOOK:
-        try:
-            requests.post(SLACK_WEBHOOK, json={"text": message})
-        except Exception as e:
-            logging.error(f"Failed to send Slack notification: {e}")
-
-
-def setup_driver(proxy=None):
-    options = FirefoxOptions()
-    print("--setting up driver--1")
-    if HEADLESS:
-        options.add_argument("--headless")
-
-    # Enhanced stealth settings
-    options.set_preference("dom.webdriver.enabled", False)
-    options.set_preference("useAutomationExtension", False)
-    options.set_preference(
-        "general.useragent.override",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    )
-
-    # Additional stealth preferences
-    options.set_preference("dom.webnotifications.enabled", False)
-    options.set_preference("media.volume_scale", "0.0")
-    options.set_preference("network.proxy.type", 0)
-    options.set_preference("privacy.resistFingerprinting", False)
-    options.set_preference("browser.cache.disk.enable", False)
-    options.set_preference("browser.cache.memory.enable", False)
-
-    print("--setting up driver--2")
-
-    # Create the Firefox driver
-    driver = webdriver.Firefox(options=options)
-
-    # Enhanced stealth: remove webdriver properties
-    print("--setting up driver--3")
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'webdriver', {get: ()=> undefined})"
-    )
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'plugins', {get: ()=> [1, 2, 3, 4, 5]})"
-    )
-    driver.execute_script(
-        "Object.defineProperty(navigator, 'languages', {get: ()=> ['en-US', 'en']})"
-    )
-
-    print("--setting up driver--4")
-    return driver
-
-
-def getOpenAIResponse(prompt, query):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    # Send a chat completion request
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",  # You can use "gpt-4o", "gpt-3.5-turbo", etc.
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": query},
-        ],
-        temperature=0.7,  # Controls creativity; 0.0 = strict, 1.0 = more creative
-    )
-
-    # Print the result
-    return response.choices[0].message.content
 
 
 def scrape_detail_page(driver, url):
@@ -248,9 +172,26 @@ def parse_opportunity_row(row):
         return None
 
 
+def find_and_click_next_page(driver):
+    """Find and click the next page button, return True if successful"""
+    try:
+        # Wait until the span element is clickable
+        span_element = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "span.fa.fa-arrow-right"))
+        )
+
+        # Click the span element
+        span_element.click()
+        print("No next page button found or clickable")
+        return True
+
+    except Exception as e:
+        print(f"Error finding/clicking next page: {e}")
+        return False
+
+
 def scrape_eib():
     """Main function to scrape European Investment Bank projects with proper pagination"""
-    page_num = 1
     driver = None
     total_projects = 0
 
@@ -325,6 +266,21 @@ def scrape_eib():
                         continue
 
                 export_excel("./excel/eib.xlsx", opps)
+                print(f"Page {page_num} completed: {page_projects} projects processed")
+                print(f"Total projects processed so far: {total_projects}")
+
+                # Check for next page
+                print("Checking for next page...")
+                if find_and_click_next_page(driver):
+                    print("Successfully navigated to next page")
+                    driver.quit()
+                    driver = None
+                    time.sleep(3)  # Wait before next page
+                    continue
+                else:
+                    print("No next page available, ending pagination.")
+                    logging.info("No next page button found, ending.")
+                    break
             except Exception as e:
                 logging.error(f"Error scraping page {page_num}: {e}")
                 print(f"Error on page {page_num}: {e}")

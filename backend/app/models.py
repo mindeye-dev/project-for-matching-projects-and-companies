@@ -1,6 +1,8 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import ARRAY, JSON
+
 
 db = SQLAlchemy()
 
@@ -17,6 +19,8 @@ class Opportunity(db.Model):
     budget = db.Column(db.String(64))
     url = db.Column(db.String(512))
     found = db.Column(db.Boolean, default=False, nullable=False)
+    three_matched_scores_and_recommended_partners_ids = db.Column(Array(JSON))
+    
 
 
 class Partner(db.Model):
@@ -25,6 +29,8 @@ class Partner(db.Model):
     country = db.Column(db.String(128))
     sector = db.Column(db.String(128))
     website = db.Column(db.String(512))
+    linkedindata= db.Column(JSON)
+    
 
 
 class User(db.Model):

@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify, send_file, current_app
-from app.models import Opportunity
+from app.models import Opportunity, Partner
 from app.models import db
 from app.scrapers_score_of_companies.company_scraper_scorer import (
-    get_3suitable_companies_data,
+    get_three_suitable_companies_data,
 )
 import os
 
@@ -35,6 +35,7 @@ def submit_opportunity():
             budget=data.get("budget"),
             url=data.get("url"),
             found=data.get("found"),
+            recommended_partners=[],
         )
         db.session.add(opp)
         db.session.commit()
@@ -74,6 +75,7 @@ def list_opportunities():
                 "budget": o.budget,
                 "url": o.url,
                 "found": o.found,
+                "recommended_partners": o.recommended_partners,
             }
         )
     return jsonify(out)
@@ -101,6 +103,7 @@ def download_report():
                     "Budget": o.budget,
                     "URL": o.url,
                     "Found": o.found,
+                    "Recommended Partners": o.recommended_partners,
                 }
             )
         df = pd.DataFrame(rows)
@@ -126,18 +129,28 @@ def find_partners_for_opportunity():
     if not data:
         return jsonify({"error": "Missing JSON body"}), 400
     try:
-        partners = get_3suitable_companies_data(data)
+        three_suitable_matched_score_and_companies_data = get_three_suitable_matched_scores_and_companies_data(data)
 
-        if partners.__len__() == 0:
+        if three_suitable_matched_score_and_companies_data.__len__() == 0:
             return jsonify({"message": "No suitable partners found"})
-        # Query opportunity
+        # Query opportunity, update opportunity table
         opportunity = Opportunity.query.get(data.id)
         if not opportunity:
             return False  # or handle error
         opportunity.found = True
+        
+        three_matched_scores_and_recommended_partners_ids = [
+            {
+                "matched_score": item["matched_score"],
+                "company_id": item["company_data"]["id"]  # or item["company_data"].id if object
+            }
+            for item in three_suitable_matched_score_and_companies_data
+        ]
+        
+        opportunity.three_matched_scores_and_recommended_partners_ids=three_matched_scores_and_recommended_partners_ids
         db.session.commit()
 
-        return jsonify(partners)
+        return jsonify(three_suitable_matched_score_and_companies_data)
     except Exception as e:
         current_app.logger.error(f"Error finding partners: {e}")
         return jsonify({"error": "Failed to find partners"}), 500
@@ -150,6 +163,8 @@ def find_new_opportunities():
     """
     Placeholder for finding new opportunities from external sources.
     """
+    
+    # scrape to find latest opportunities
 
     # This is a placeholder. In a real implementation, you would integrate
     # with external APIs or web scraping logic to find new opportunities.

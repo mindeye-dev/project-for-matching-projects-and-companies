@@ -5,10 +5,13 @@ import logging
 import random
 from dotenv import load_dotenv
 
+from sqlalchemy import cast, String
 
-from app.models import Opportunity
 
-from company_scraper.scorer import get_score_between_project_and_company
+
+from app.models import Opportunity, Partner
+
+from company_scraper.scorer import get_matched_score_between_project_and_company
 
 # Load environment variables from .env file
 load_dotenv()
@@ -117,11 +120,11 @@ def get_companydata_from_linkedinurl(company_url):
         raise Exception("Daily profile request limit reached")
 
     path = urlparse(company_url).path
-    company_name = path.strip("/").split("/")[-1]
+    company_identifier = path.strip("/").split("/")[-1]
 
-    print("company name is ", company_name)
+    print("company name is ", company_identifier)
 
-    url = f"https://{UNIPILE_DNS}/api/v1/linkedin/company/{company_name}?account_id={LINKEDIN_ACCOUNT_ID}"
+    url = f"https://{UNIPILE_DNS}/api/v1/linkedin/company/{company_identifier}?account_id={LINKEDIN_ACCOUNT_ID}"
 
     headers = {"accept": "application/json", "X-API-KEY": UNIPILE_API_KEY}
 
@@ -129,7 +132,7 @@ def get_companydata_from_linkedinurl(company_url):
 
     # print(response.text)
     profiles_retrieved += 1
-    return response.text
+    return response.json()
 
 
 def getPerplexityResponse(prompt, query):
@@ -147,33 +150,76 @@ def getPerplexityResponse(prompt, query):
     return response.choices[0].message.content
 
 
-def get_3suitable_companies_data(project):
+def get_three_suitable_matched_scores_and_companies_data(project):
     try:
         company_urls = get_all_linkinurls_of_companies(
             project["country"], project["sector"]
         )
         print(company_urls)
-        scored_projects = []
+        matched_scores_and_companies_data = []
         for i, company_url in enumerate(company_urls):
             # Extract project information
+            
+            # company_data is json type.
             company_data = get_companydata_from_linkedinurl(company_url)
-            matched_score = get_score_between_project_and_company(project, company_data)
-            scored_projects.append(
+            
+            # Find matched partner in Partner table
+            result =  Partner.query.filter(
+                cast(Partner.linkedindata['profile_url'], String) == company_url
+            ).all()
+            
+            if(len(result)>1):
+                # Error, remove another elements without one element
+                # Keep the first element
+                first_partner = result[0]
+                
+                # Collect IDs of other elements to delete
+                ids_to_delete = [partner.id for partner in result[1:]]
+                
+                # Delete partners with these ids from Partner table
+                Partner.query.filter(Partner.id.in_(ids_to_delete)).delete(synchronize_session=False)
+                
+                db.session.commit()
+                
+                # Now result contains only one element logically (you can reassign if needed)
+                result = [first_partner]
+            
+            elif (len(result)==1):
+                # result[0] is one partner data of Partner database, so let update linkedindata if it is differente with original linkedindata of Partner database.
+                if(result[0].linkedindata!=company_data.linkedindata):
+                    result[0].linkedindata=company_data.linkedindata
+                    db.session.commit()  # Commit changes to the database
+            
+            else:
+                new_partner = Partner(
+                    # Assign other fields as needed, example:
+                    name=company_data.get("name"),
+                    country=company_data.get("country"),
+                    sector=company_data.get("sector"),
+                    website=company_data.get("website"),
+                    linkedindata=company_data  # assign JSON data here
+                )
+                db.session.add(new_partner)
+                db.session.commit()
+            
+            
+            # if there is data in Partner database, update it.
+            matched_score = get_matched_score_between_project_and_company(project, company_data)
+            matched_scores_and_companies_data.append(
                 {"matched_score": matched_score, "company_data": company_data}
             )
             print("matching score is ", matched_score)
 
         # finally get 3 top matched company data
         sorted_data = sorted(
-            scored_projects, key=lambda x: x["matched_score"], reverse=True
+            matched_scores_and_companies_data, key=lambda x: x["matched_score"], reverse=True
         )
 
-        # Get top 3 company_data
-        top_3_companies = [item["company_data"] for item in sorted_data[:3]]
+        three_suitable_matched_scores_and_companies_data = [item["company_data"] for item in sorted_data[:3]]
 
-        print(top_3_companies)
+        print(three_suitable_matched_scores_and_companies_data)
 
-        return top_3_companies
+        return three_suitable_matched_scores_and_companies_data
     except Exception as e:
         logging.error(f"Error in get_3suitable_companies_data: {e}")
         return []
@@ -192,11 +238,11 @@ if __name__ == "__main__":
             "program": "Public Investment Programme Implementation Diagnosis and Skills Capacity Assessment",
             "url": "https://www.afdb.org/en/documents/gpn-botswana-public-investment-programme-implementation-diagnosis-and-skills-capacity-assessment",
         }
-        suitable_3projects = get_3suitable_companies_data(
+        three_suitable_matched_scores_and_companies_data = get_three_suitable_matched_scores_and_companies_data(
             project
-        )  # @ scored, linkedidata
+        )  # @ array of matched scores and companies data
 
-        print(suitable_3projects)
-        print(len(suitable_3projects))
+        print(three_suitable_matched_scores_and_companies_data)
+        print(len(three_suitable_matched_scores_and_companies_data))
     except Exception as e:
         logging.critical(f"Fatal error: {e}")
