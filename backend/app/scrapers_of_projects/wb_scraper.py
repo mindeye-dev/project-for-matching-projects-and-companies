@@ -18,6 +18,7 @@ from scraper_helpers import (
     is_cloudflare_captcha_present,
     is_captcha_present,
     BACKEND_API,
+    saveToDatabase,
 )
 
 # must change os 20 step by step
@@ -340,14 +341,14 @@ def scrape_wb():
     try:
         while True:
             print(f"\n{'='*50}")
-            print(f"SCRAPING PAGE {page_num}")
+            print(f"SCRAPING PAGE {os_num}")
             print(f"{'='*50}")
 
-            print(f"Setting up driver for page {page_num}")
+            print(f"Setting up driver for page {os_num}")
             driver = setup_driver()
             url = get_url()
-            print(f"Preparing to scrape WB page {page_num}")
-            logging.info(f"Scraping page {page_num}")
+            print(f"Preparing to scrape WB page {os_num}")
+            logging.info(f"Scraping page {os_num}")
 
             try:
                 driver.get(url)
@@ -430,7 +431,7 @@ def scrape_wb():
                 except Exception:
                     print("No links found directly")
 
-                print(f"Processing {len(rows)} project rows on page {page_num}")
+                print(f"Processing {len(rows)} project rows on page {os_num}")
 
                 # Process each row
                 page_projects = 0
@@ -453,24 +454,13 @@ def scrape_wb():
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
                                 opps.append(opp)
+                                saveToDatabase(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
                                 print(opp)
                             except Exception as e:
                                 logging.warning(f"Failed to scrape detail page: {e}")
-
-                        # Submit to backend
-                        logging.info(f"Submitting: {opp['title']} ({opp['country']})")
-                        try:
-                            r = requests.post(BACKEND_API, json=opp)
-                            logging.info(f"Submitted: {r.status_code}")
-                            print(f"Successfully submitted project {i+1}")
-                            page_projects += 1
-                            total_projects += 1
-                        except Exception as e:
-                            logging.error(f"Error submitting: {e}")
-                            notify_error(f"Error submitting opportunity: {e}")
 
                         time.sleep(1)
 
@@ -479,8 +469,6 @@ def scrape_wb():
                         continue
 
                 export_excel("./excel/wb.xlsx", opps)
-                print(f"Page {page_num} completed: {page_projects} projects processed")
-                print(f"Total projects processed so far: {total_projects}")
 
                 # Check for next page
                 print("Checking for next page...")
@@ -496,8 +484,8 @@ def scrape_wb():
                     break
 
             except Exception as e:
-                logging.error(f"Error scraping page {page_num}: {e}")
-                print(f"Error on page {page_num}: {e}")
+                logging.error(f"Error scraping page {os_num}: {e}")
+                print(f"Error on page {os_num}: {e}")
 
                 # Print additional debugging info
                 if driver:
@@ -519,7 +507,7 @@ def scrape_wb():
 
         print(f"\n{'='*50}")
         print(f"SCRAPING COMPLETED")
-        print(f"Total pages processed: {page_num}")
+        print(f"Total pages processed: {os_num}")
         print(f"Total projects processed: {total_projects}")
         print(f"{'='*50}")
 

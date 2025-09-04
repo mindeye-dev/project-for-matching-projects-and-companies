@@ -17,6 +17,7 @@ from scraper_helpers import (
     solve_cloudflare_captcha,
     is_cloudflare_captcha_present,
     is_captcha_present,
+    saveToDatabase,
 )
 
 # must click page element
@@ -317,7 +318,15 @@ def parse_opportunity_row(row):
 def find_and_click_next_page(driver):
     """Find and click the next page button, return True if successful"""
     try:
+        # Wait until the element is clickable
+        next_span = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//span[@class='sr-only' and text()='Next']")
+            )
+        )
 
+        # Click the span element
+        next_span.click()
         print("No next page button found or clickable")
         return True
 
@@ -367,7 +376,17 @@ def scrape_debit():
                 # Print page title and URL for debugging
                 print(f"Page title: {driver.title}")
                 print(f"Current URL: {driver.current_url}")
+                # Wait until at least one link appears inside .view-content .field-content
+                rows = WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, ".view-content .field-content a")
+                    )
+                )
+                print(f"Found {len(rows)} rows:")
+                print(f"Processing {len(rows)} project rows on page {page_num}")
 
+                # Process each row
+                page_projects = 0
                 opps = []
                 for i, row in enumerate(rows):
                     try:
@@ -387,6 +406,7 @@ def scrape_debit():
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
                                 opps.update(opp)
+                                saveToDatabase(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
@@ -420,7 +440,6 @@ def scrape_debit():
                 print("Checking for next page...")
                 if find_and_click_next_page(driver):
                     print("Successfully navigated to next page")
-                    page_num += 1
                     driver.quit()
                     driver = None
                     time.sleep(3)  # Wait before next page

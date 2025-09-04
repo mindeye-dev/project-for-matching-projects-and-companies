@@ -17,6 +17,7 @@ from scraper_helpers import (
     solve_cloudflare_captcha,
     is_cloudflare_captcha_present,
     is_captcha_present,
+    saveToDatabase,
 )
 
 
@@ -166,6 +167,21 @@ def parse_opportunity_row(row):
         return None
 
 
+def find_and_click_next_page(driver):
+    """Find and click the next page button, return True if successful"""
+    try:
+        page_num += 1
+        return True
+
+    except Exception as e:
+        print(f"Error finding/clicking next page: {e}")
+        return False
+
+
+def get_url():
+    return f"https://www.adb.org/projects/tenders?page={page_num}"
+
+
 def scrape_iadb():
     """Main function to scrape Inter-American Development Bank projects with proper pagination"""
     page_num = 1
@@ -180,7 +196,7 @@ def scrape_iadb():
 
             print(f"Setting up driver for page {page_num}")
             driver = setup_driver()
-            url = IADB_URL
+            url = get_url()
             print(f"Preparing to scrape WB page {page_num}")
             logging.info(f"Scraping page {page_num}")
 
@@ -244,24 +260,13 @@ def scrape_iadb():
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
                                 opps.append(opp)
+                                saveToDatabase(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
                                 print(opp)
                             except Exception as e:
                                 logging.warning(f"Failed to scrape detail page: {e}")
-
-                        # Submit to backend
-                        logging.info(f"Submitting: {opp['title']} ({opp['country']})")
-                        try:
-                            r = requests.post(BACKEND_API, json=opp)
-                            logging.info(f"Submitted: {r.status_code}")
-                            print(f"Successfully submitted project {i+1}")
-                            page_projects += 1
-                            total_projects += 1
-                        except Exception as e:
-                            logging.error(f"Error submitting: {e}")
-                            notify_error(f"Error submitting opportunity: {e}")
 
                         time.sleep(1)
 
@@ -270,8 +275,6 @@ def scrape_iadb():
                         continue
 
                 export_excel("./excel/iadb.xlsx", opps)
-                print(f"Page {page_num} completed: {page_projects} projects processed")
-                print(f"Total projects processed so far: {total_projects}")
 
                 # Check for next page
                 print("Checking for next page...")

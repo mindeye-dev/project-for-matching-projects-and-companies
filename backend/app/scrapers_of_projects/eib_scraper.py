@@ -15,6 +15,7 @@ from scraper_helpers import (
     solve_cloudflare_captcha,
     is_cloudflare_captcha_present,
     is_captcha_present,
+    saveToDatabase,
 )
 
 
@@ -255,6 +256,7 @@ def scrape_eib():
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
                                 opps.append(opp)
+                                saveToDatabase(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )

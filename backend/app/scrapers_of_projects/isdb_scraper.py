@@ -17,6 +17,7 @@ from scraper_helpers import (
     solve_cloudflare_captcha,
     is_cloudflare_captcha_present,
     is_captcha_present,
+    saveToDatabase,
 )
 
 
@@ -286,24 +287,13 @@ def scrape_isdb():
                                 detail_fields = scrape_detail_page(driver, opp["url"])
                                 opp.update(detail_fields)
                                 opps.append(opp)
+                                saveToDatabase(opp)
                                 print(
                                     f"Added detail fields: {list(detail_fields.keys())}"
                                 )
                                 print(opp)
                             except Exception as e:
                                 logging.warning(f"Failed to scrape detail page: {e}")
-
-                        # Submit to backend
-                        logging.info(f"Submitting: {opp['title']} ({opp['country']})")
-                        try:
-                            r = requests.post(BACKEND_API, json=opp)
-                            logging.info(f"Submitted: {r.status_code}")
-                            print(f"Successfully submitted project {i+1}")
-                            page_projects += 1
-                            total_projects += 1
-                        except Exception as e:
-                            logging.error(f"Error submitting: {e}")
-                            notify_error(f"Error submitting opportunity: {e}")
 
                         time.sleep(1)
 
@@ -312,8 +302,6 @@ def scrape_isdb():
                         continue
 
                 export_excel("./excel/isdb.xlsx", opps)
-                print(f"Page {page_num} completed: {page_projects} projects processed")
-                print(f"Total projects processed so far: {total_projects}")
 
                 # Check for next page
                 print("Checking for next page...")

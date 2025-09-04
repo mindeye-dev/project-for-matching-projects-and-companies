@@ -1,3 +1,7 @@
+import os
+import requests
+import logging
+
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -18,10 +22,14 @@ from selenium.common.exceptions import (
 
 import pandas as pd
 
+from app.models import Opportunity, Partner
+from app.models import db
+
 
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
 HEADLESS = os.environ.get("HEADLESS", "0") == "1"
 SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK", "")
+
 
 def export_excel(filename, data_array):
     df = pd.DataFrame(data_array)
@@ -45,6 +53,7 @@ def print_element_html(element, description="Element"):
         print(f"=== END OF {description.upper()} HTML ===\n")
     except Exception as e:
         print(f"Error printing HTML for {description}: {e}")
+
 
 def setup_driver(proxy=None):
     options = FirefoxOptions()
@@ -87,8 +96,6 @@ def setup_driver(proxy=None):
 
     print("--setting up driver--4")
     return driver
-
-
 
 
 def solve_cloudflare_captcha(driver):
@@ -158,6 +165,25 @@ def is_captcha_present(driver):
     except TimeoutException:
         # No such element appeared, CAPTCHA likely not present
         return False
+
+
+def saveToDatabase(project):
+
+    opp = Opportunity(
+        project_name=project["title"],
+        client=project["client"],
+        country=project["country"],
+        sector=project["sector"],
+        summary=project["summary"],
+        deadline=project["deadline"],
+        program=project["program"],
+        budget=project["budget"],
+        url=project["url"],
+        found=False,
+        recommended_partners=[],
+    )
+    db.session.add(opp)
+    db.session.commit()
 
 
 def getOpenAIResponse(prompt, query):

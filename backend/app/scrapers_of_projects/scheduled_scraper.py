@@ -9,6 +9,11 @@ from datetime import datetime
 
 import concurrent.futures
 
+import threading
+
+stop_event = threading.Event()
+
+
 # Import individual scrapers
 from wb_scraper import scrape_wb
 from afdb_scraper import scrape_afdb
@@ -230,6 +235,10 @@ def run_scraping():
             except Exception as e:
                 logging.error(f"Error running {scraper.__name__}: {e}")
                 notify_error(f"Error running {scraper.__name__}: {e}")
+
+
+def stop_scraping():
+    stop_event.set()  # signals all scrapers to stop
 
 
 if __name__ == "__main__":
