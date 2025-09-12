@@ -8,7 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-from scraper_helpers import (
+from app.scrapers_of_projects.scraper_helpers import (
     setup_driver,
     export_excel,
     notify_error,
@@ -103,7 +103,7 @@ def scrape_detail_page(driver, url):
         budget_elem = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "rlConsultingBudget"))
         )
-
+        prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
         fields["budget"] = budget_elem.text.strip()
 
     except Exception as e:

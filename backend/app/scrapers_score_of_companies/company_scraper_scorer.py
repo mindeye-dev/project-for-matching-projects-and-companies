@@ -8,10 +8,10 @@ from dotenv import load_dotenv
 from sqlalchemy import cast, String
 
 
-
 from app.models import Opportunity, Partner
 
-from company_scraper.scorer import get_matched_score_between_project_and_company
+from app.scrapers_score_of_companies.matching_scorer import getOpenAIResponse, get_matched_score_between_project_and_company
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -159,37 +159,39 @@ def get_three_suitable_matched_scores_and_companies_data(project):
         matched_scores_and_companies_data = []
         for i, company_url in enumerate(company_urls):
             # Extract project information
-            
+
             # company_data is json type.
             company_data = get_companydata_from_linkedinurl(company_url)
-            
+
             # Find matched partner in Partner table
-            result =  Partner.query.filter(
-                cast(Partner.linkedindata['profile_url'], String) == company_url
+            result = Partner.query.filter(
+                cast(Partner.linkedindata["profile_url"], String) == company_url
             ).all()
-            
-            if(len(result)>1):
+
+            if len(result) > 1:
                 # Error, remove another elements without one element
                 # Keep the first element
                 first_partner = result[0]
-                
+
                 # Collect IDs of other elements to delete
                 ids_to_delete = [partner.id for partner in result[1:]]
-                
+
                 # Delete partners with these ids from Partner table
-                Partner.query.filter(Partner.id.in_(ids_to_delete)).delete(synchronize_session=False)
-                
+                Partner.query.filter(Partner.id.in_(ids_to_delete)).delete(
+                    synchronize_session=False
+                )
+
                 db.session.commit()
-                
+
                 # Now result contains only one element logically (you can reassign if needed)
                 result = [first_partner]
-            
-            elif (len(result)==1):
+
+            elif len(result) == 1:
                 # result[0] is one partner data of Partner database, so let update linkedindata if it is differente with original linkedindata of Partner database.
-                if(result[0].linkedindata!=company_data.linkedindata):
-                    result[0].linkedindata=company_data.linkedindata
+                if result[0].linkedindata != company_data.linkedindata:
+                    result[0].linkedindata = company_data.linkedindata
                     db.session.commit()  # Commit changes to the database
-            
+
             else:
                 new_partner = Partner(
                     # Assign other fields as needed, example:
@@ -197,14 +199,15 @@ def get_three_suitable_matched_scores_and_companies_data(project):
                     country=company_data.get("country"),
                     sector=company_data.get("sector"),
                     website=company_data.get("website"),
-                    linkedindata=company_data  # assign JSON data here
+                    linkedindata=company_data,  # assign JSON data here
                 )
                 db.session.add(new_partner)
                 db.session.commit()
-            
-            
+
             # if there is data in Partner database, update it.
-            matched_score = get_matched_score_between_project_and_company(project, company_data)
+            matched_score = get_matched_score_between_project_and_company(
+                project, company_data
+            )
             matched_scores_and_companies_data.append(
                 {"matched_score": matched_score, "company_data": company_data}
             )
@@ -212,10 +215,14 @@ def get_three_suitable_matched_scores_and_companies_data(project):
 
         # finally get 3 top matched company data
         sorted_data = sorted(
-            matched_scores_and_companies_data, key=lambda x: x["matched_score"], reverse=True
+            matched_scores_and_companies_data,
+            key=lambda x: x["matched_score"],
+            reverse=True,
         )
 
-        three_suitable_matched_scores_and_companies_data = [item["company_data"] for item in sorted_data[:3]]
+        three_suitable_matched_scores_and_companies_data = [
+            item["company_data"] for item in sorted_data[:3]
+        ]
 
         print(three_suitable_matched_scores_and_companies_data)
 
@@ -238,8 +245,8 @@ if __name__ == "__main__":
             "program": "Public Investment Programme Implementation Diagnosis and Skills Capacity Assessment",
             "url": "https://www.afdb.org/en/documents/gpn-botswana-public-investment-programme-implementation-diagnosis-and-skills-capacity-assessment",
         }
-        three_suitable_matched_scores_and_companies_data = get_three_suitable_matched_scores_and_companies_data(
-            project
+        three_suitable_matched_scores_and_companies_data = (
+            get_three_suitable_matched_scores_and_companies_data(project)
         )  # @ array of matched scores and companies data
 
         print(three_suitable_matched_scores_and_companies_data)

@@ -22,7 +22,7 @@ def getOpenAIResponse(prompt, query):
     return response.choices[0].message.content
 
 
-def get_score_between_project_and_company(project, company):
+def get_matched_score_between_project_and_company(project, company):
     try:
         prompt = "I will upload project and company data. Plz analyze it and then give me matching score only. output must be only score in integer(min:1, max:100). for example output is '50'. output must be integer."
         data = f"This data is project data. ~~~~{project}~~~. And this data is company data. ~~~~{company}~~~."

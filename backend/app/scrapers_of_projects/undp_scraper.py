@@ -8,7 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-from scraper_helpers import (
+from app.scrapers_of_projects.scraper_helpers import (
     setup_driver,
     export_excel,
     notify_error,

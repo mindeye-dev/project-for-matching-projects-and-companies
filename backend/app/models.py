@@ -19,8 +19,7 @@ class Opportunity(db.Model):
     budget = db.Column(db.String(64))
     url = db.Column(db.String(512))
     found = db.Column(db.Boolean, default=False, nullable=False)
-    three_matched_scores_and_recommended_partners_ids = db.Column(Array(JSON))
-    
+    three_matched_scores_and_recommended_partners_ids = db.Column(ARRAY(JSON))
 
 
 class Partner(db.Model):
@@ -29,8 +28,7 @@ class Partner(db.Model):
     country = db.Column(db.String(128))
     sector = db.Column(db.String(128))
     website = db.Column(db.String(512))
-    linkedindata= db.Column(JSON)
-    
+    linkedindata = db.Column(JSON)
 
 
 class User(db.Model):

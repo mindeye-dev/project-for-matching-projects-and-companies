@@ -15,20 +15,20 @@ stop_event = threading.Event()
 
 
 # Import individual scrapers
-from wb_scraper import scrape_wb
-from afdb_scraper import scrape_afdb
-from eib_scraper import scrape_eib
-from afd_scraper import scrape_afd
-from isdb_scraper import scrape_isdb
-from kfw_scraper import scrape_kfw
-from undp_scraper import scrape_undp
-from adb_scraper import scrape_adb
-from ebrd_scraper import scrape_ebrd
-from ifc_scraper import scrape_ifc
-from fmo_scraper import scrape_fmo
-from miga_scraper import scrape_miga
-from iadb_scraper import scrape_iadb
-from debit_scraper import scrape_debit
+from app.scrapers_of_projects.wb_scraper import scrape_wb
+from app.scrapers_of_projects.afdb_scraper import scrape_afdb
+from app.scrapers_of_projects.eib_scraper import scrape_eib
+from app.scrapers_of_projects.afd_scraper import scrape_afd
+from app.scrapers_of_projects.isdb_scraper import scrape_isdb
+from app.scrapers_of_projects.kfw_scraper import scrape_kfw
+from app.scrapers_of_projects.undp_scraper import scrape_undp
+from app.scrapers_of_projects.adb_scraper import scrape_adb
+from app.scrapers_of_projects.ebrd_scraper import scrape_ebrd
+from app.scrapers_of_projects.ifc_scraper import scrape_ifc
+from app.scrapers_of_projects.fmo_scraper import scrape_fmo
+from app.scrapers_of_projects.miga_scraper import scrape_miga
+from app.scrapers_of_projects.iadb_scraper import scrape_iadb
+from app.scrapers_of_projects.debit_scraper import scrape_debit
 
 
 # --- Config ---
