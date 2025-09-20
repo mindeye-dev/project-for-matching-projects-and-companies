@@ -2,6 +2,8 @@ Flask
 Flask-RESTful
 Flask-CORS
 Flask-SQLAlchemy
+Flask-jwt-extended
+bcrypt
 pandas
 openpyxl
 APScheduler
