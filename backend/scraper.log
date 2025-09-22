@@ -12900,3 +12900,24 @@ _onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
 2025-09-23 03:55:29,966 WARNING: * Debugger is active!
 2025-09-23 03:55:29,975 INFO: * Debugger PIN: 119-656-905
 2025-09-23 03:55:34,837 INFO:No WebDriver instance to clean up.
+2025-09-23 03:56:06,598 INFO:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-09-23 03:56:06,598 INFO:[33mPress CTRL+C to quit[0m
+2025-09-23 03:56:06,613 INFO: * Restarting with watchdog (windowsapi)
+2025-09-23 03:56:20,098 WARNING: * Debugger is active!
+2025-09-23 03:56:20,116 INFO: * Debugger PIN: 119-656-905
+2025-09-23 03:57:16,243 ERROR:Error scraping page 0: cannot access local variable 'driver' where it is not associated with a value
+2025-09-23 03:57:33,425 ERROR:Error scraping page 0: cannot access local variable 'driver' where it is not associated with a value
+2025-09-23 03:58:25,602 ERROR:Error scraping page 0: cannot access local variable 'driver' where it is not associated with a value
+2025-09-23 03:58:47,867 ERROR:Error scraping page 0: Message: Failed to decode response from marionette
+
+2025-09-23 03:58:50,336 ERROR:Error scraping page 0: Message: Failed to decode response from marionette
+
+2025-09-23 03:59:59,687 ERROR:Error scraping page 0: cannot access local variable 'driver' where it is not associated with a value
+2025-09-23 04:00:05,538 ERROR:Error scraping page 0: cannot access local variable 'driver' where it is not associated with a value
+2025-09-23 04:00:45,134 INFO: * Detected change in 'E:\\MyGitHubs\\4_AI\\Upwork Task\\bank fintech chatbot\\backend\\run.py', reloading
+2025-09-23 04:00:45,135 INFO: * Detected change in 'E:\\MyGitHubs\\4_AI\\Upwork Task\\bank fintech chatbot\\backend\\app\\__init__.py', reloading
+2025-09-23 04:00:45,150 INFO: * Detected change in 'E:\\MyGitHubs\\4_AI\\Upwork Task\\bank fintech chatbot\\backend\\app\\routes\\api.py', reloading
+2025-09-23 04:01:04,039 WARNING:Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)': /session/a5716d5a-4d2c-4dd4-9e97-01a74c9746fa
+2025-09-23 04:01:04,106 ERROR:Error scraping page 0: ('Connection aborted.', ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))
+2025-09-23 04:01:04,177 ERROR:Error scraping page 0: ('Connection aborted.', ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None))

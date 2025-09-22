@@ -285,7 +285,7 @@ class BankScraperBase:
 
     # class that must be implemented
 
-    def get_url(self, page_num):
+    def get_url(self):
         """Generate URL for pagination"""
         raise NotImplementedError("The 'get_url' method must be implemented in subclasses.")
 
