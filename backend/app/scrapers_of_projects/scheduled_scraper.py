@@ -15,21 +15,24 @@ stop_event = threading.Event()
 
 
 # Import individual scrapers
-from app.scrapers_of_projects.wb_scraper import scrape_wb
-from app.scrapers_of_projects.afdb_scraper import scrape_afdb
-from app.scrapers_of_projects.eib_scraper import scrape_eib
-from app.scrapers_of_projects.afd_scraper import scrape_afd
-from app.scrapers_of_projects.isdb_scraper import scrape_isdb
-from app.scrapers_of_projects.kfw_scraper import scrape_kfw
-from app.scrapers_of_projects.undp_scraper import scrape_undp
-from app.scrapers_of_projects.adb_scraper import scrape_adb
-from app.scrapers_of_projects.ebrd_scraper import scrape_ebrd
-from app.scrapers_of_projects.ifc_scraper import scrape_ifc
-from app.scrapers_of_projects.fmo_scraper import scrape_fmo
-from app.scrapers_of_projects.miga_scraper import scrape_miga
-from app.scrapers_of_projects.iadb_scraper import scrape_iadb
-from app.scrapers_of_projects.debit_scraper import scrape_debit
+from app.scrapers_of_projects.bank_scraper_wb import WorldBankScraper
+from app.scrapers_of_projects.bank_scraper_afdb import AfricanDevelopmeBankScraper
+from app.scrapers_of_projects.bank_scraper_eib import EuropeanInvestmentBankScraper
+from app.scrapers_of_projects.bank_scraper_afd import FrenchDevelopmentAgencyScraper
+from app.scrapers_of_projects.bank_scraper_isdb import IslamicDevelopmentBankScraper
+from app.scrapers_of_projects.bank_scraper_kfw import KfWEntwicklungsBankScraper
+from app.scrapers_of_projects.bank_scraper_undp import UnitedNationsDevelopmentProgrammeScraper
+from app.scrapers_of_projects.bank_scraper_adb import AsianDevelopmentBankScraper
+from app.scrapers_of_projects.bank_scraper_ebrd import EuropeanBankScraper
+from app.scrapers_of_projects.bank_scraper_ifc import InternationalFinanceCorporationScraper
+from app.scrapers_of_projects.bank_scraper_fmo import DutchEnterpreneurialDevelopmentBankScraper
+from app.scrapers_of_projects.bank_scraper_miga import WorldBankGroupGuaranteesScraper
+from app.scrapers_of_projects.bank_scraper_iadb import InterAmericanDevelopmentBankScraper
+from app.scrapers_of_projects.bank_scraper_debit import DevelopmentBankScraper
 
+
+# Global Lock to ensure that only one scraping process runs at a time
+scraping_lock = threading.Lock()
 
 # --- Config ---
 BACKEND_API = os.environ.get("BACKEND_API", "http://localhost:5000/api/opportunity")
@@ -51,6 +54,9 @@ def notify_error(message):
             requests.post(SLACK_WEBHOOK, json={"text": message})
         except Exception as e:
             logging.error(f"Failed to send Slack notification: {e}")
+
+
+
 
 
 # def start_scheduler():
@@ -209,32 +215,36 @@ def notify_error(message):
 
 
 def run_scraping():
-    # List of scraping functions
-    scrapers = [
-        scrape_wb,
-        scrape_afdb,
-        scrape_eib,
-        scrape_afd,
-        scrape_isdb,
-        scrape_kfw,
-        scrape_undp,
-        scrape_adb,
-        scrape_ebrd,
-        scrape_ifc,
-        scrape_fmo,
-        scrape_miga,
-        scrape_iadb,
-        scrape_debit,
-    ]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_scraper = {executor.submit(scraper): scraper for scraper in scrapers}
-        for future in concurrent.futures.as_completed(future_to_scraper):
-            scraper = future_to_scraper[future]
-            try:
-                future.result()
-            except Exception as e:
-                logging.error(f"Error running {scraper.__name__}: {e}")
-                notify_error(f"Error running {scraper.__name__}: {e}")
+    with scraping_lock:
+        # List of scraping functions
+        scrape_wb = WorldBankScraper()
+        scrapers = [
+            scrape_wb,
+            # scrape_afdb,
+            # scrape_eib,
+            # scrape_afd,
+            # scrape_isdb,
+            # scrape_kfw,
+            # scrape_undp,
+            # scrape_adb,
+            # scrape_ebrd,
+            # scrape_ifc,
+            # scrape_fmo,
+            # scrape_miga,
+            # scrape_iadb,
+            # scrape_debit,
+        ]
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        #     future_to_scraper = {executor.submit(scraper): scraper for scraper in scrapers}
+        #     for future in concurrent.futures.as_completed(future_to_scraper):
+        #         scraper = future_to_scraper[future]
+        #         try:
+        #             future.result()
+        #         except Exception as e:
+        #             logging.error(f"Error running {scraper.__name__}: {e}")
+        #             notify_error(f"Error running {scraper.__name__}: {e}")
+
+        scrape_wb.scrape_page()
 
 
 def stop_scraping():

@@ -17,7 +17,7 @@ from app.chatbot import get_AI_message
 api_bp = Blueprint("api", __name__)
 
 
-@api_bp.route("/opportunities", methods=["GET"])
+@api_bp.route("/fetchopportunities", methods=["GET"])
 @jwt_required()
 def list_opportunities():
     """
@@ -25,12 +25,18 @@ def list_opportunities():
     """
     country = request.args.get("country")
     sector = request.args.get("sector")
+    print("starting to send opportunities")
+    print("country is ", country)
+    print("sector is ", sector)
     query = Opportunity.query
+    print("query is ", query)
     if country:
         query = query.filter(Opportunity.country.ilike(f"%{country}%"))
     if sector:
         query = query.filter(Opportunity.sector.ilike(f"%{sector}%"))
+    print("filtered query is ", query)
     results = query.order_by(Opportunity.id.desc()).all()
+    print("results are ", results)
     out = []
     for o in results:
         out.append(
@@ -46,7 +52,6 @@ def list_opportunities():
                 "budget": o.budget,
                 "url": o.url,
                 "found": o.found,
-                "recommended_partners": o.recommended_partners,
             }
         )
     return jsonify(out)
@@ -131,7 +136,7 @@ def find_partners_for_opportunity():
     except Exception as e:
         current_app.logger.error(f"Error finding partners: {e}")
         return jsonify({"error": "Failed to find partners"}), 500
-
+ 
 
 # user want to fine new opportunities. In this case, scraping is executed and if there is one oppotunity adn click star to thisgithub.o
 @api_bp.route("/scrape_latest_opportunities", methods=["GET"])
