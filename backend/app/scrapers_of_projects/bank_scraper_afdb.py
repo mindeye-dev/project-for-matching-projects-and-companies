@@ -123,25 +123,25 @@ class AfricanDevelopmeBankScraper(BankScraperBase):
             pdf_text = viewer_elem.text
 
             prompt = "I will upload contract content. Plz analyze it and then give me project title only. Output must be only project title without any comment and prefix such as `project title:`"
-            fields["title"] = getOpenAIResponse(prompt, pdf_text)
+            fields["title"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me applied country only. Output must be only country name without any comment and prefix such as `country:`"
-            fields["country"] = getOpenAIResponse(prompt, pdf_text)
+            fields["country"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "You are given a contract document. Extract the contract budget only.  Return the budget amount exactly as written in the document (e.g., `US$317.5 million`).  If no budget is mentioned, return only `Not defined`.  Do not add any comments, explanations, or prefixes."
-            fields["budget"] = getOpenAIResponse(prompt, pdf_text)
+            fields["budget"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
-            fields["sector"] = getOpenAIResponse(prompt, pdf_text)
+            fields["sector"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
-            fields["summary"] = getOpenAIResponse(prompt, pdf_text)
+            fields["summary"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me last deadline date only. Output must be only last deadline date without any comment and prefix such as `deadline date:`"
-            fields["deadline"] = getOpenAIResponse(prompt, pdf_text)
+            fields["deadline"] = self.get_openai_response(prompt, pdf_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me related program and project only. Output must be only related program and project without any comment and prefix such as `related program/project:`"
-            fields["program"] = getOpenAIResponse(prompt, pdf_text)
+            fields["program"] = self.get_openai_response(prompt, pdf_text)
 
             print(fields["client"])
             print(fields["title"])

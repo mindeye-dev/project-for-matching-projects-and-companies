@@ -1,8 +1,10 @@
 # https://docs.langchain.com/langsmith/observability-quickstart#application-code
+import os
 from flask import Flask
 from flask_cors import CORS
 import threading
 import time
+import asyncio
 
 from .routes.api import api_bp
 from .routes.auth import auth_bp
@@ -33,7 +35,8 @@ def create_app():
     def delayed_scraping():
         time.sleep(2)  # Wait 2 seconds for app to be ready
         try:
-            run_scraping()
+            with app.app_context():
+                asyncio.run(run_scraping())
         except Exception as e:
             print(f"Error in background scraping: {e}")
     

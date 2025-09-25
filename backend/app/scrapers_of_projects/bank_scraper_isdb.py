@@ -149,7 +149,7 @@ class IslamicDevelopmentBankScraper(BankScraperBase):
 
         # budget
         prompt = "I will upload contract content. Plz analyze it and then give me budget only. Output must be only budget without any comment and prefix such as `budget:`. If budget is not specified, plz return `Not defined`"
-        fields["budget"] = self.getOpenAIResponse(prompt, main_element.text)
+        fields["budget"] = self.get_openai_response(prompt, main_element.text)
 
         # sector
         try:
@@ -180,7 +180,7 @@ class IslamicDevelopmentBankScraper(BankScraperBase):
         )
 
         prompt = "I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
-        fields["summary"] = self.getOpenAIResponse(prompt, entire_container.text)
+        fields["summary"] = self.get_openai_response(prompt, entire_container.text)
 
         # Submission deadline
         # .main-detail, fifth .row, third li, p

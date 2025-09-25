@@ -3,6 +3,7 @@ import requests
 import time
 import logging
 import atexit
+import json
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -50,7 +51,7 @@ class BankScraperBase:
         else:
             logging.info("No WebDriver instance to clean up.")
 
-    def setup_driver(self, proxy=None):
+    async def setup_driver(self, proxy=None):
         """Set up the Firefox driver with necessary configurations"""
         options = FirefoxOptions()
         if HEADLESS:
@@ -140,7 +141,7 @@ class BankScraperBase:
         except TimeoutException:
             return False
         
-    def wait_for_completed_loading(self, timeout=30):
+    async def wait_for_completed_loading(self, timeout=30):
         """Wait for dynamic content (AJAX) to load"""
         try:
             self.driver.execute_script(
@@ -202,8 +203,9 @@ class BankScraperBase:
         except Exception as e:
             print(f"Error printing HTML for {description}: {e}")
             
-    def save_to_database(self, project):
+    async def save_to_database(self, project):
         """Save project data to the database"""
+        print("saving database now.")
         opp = Opportunity(
             project_name=project["title"],
             client=project["client"],
@@ -218,14 +220,32 @@ class BankScraperBase:
         )
 
         print("Saving project to database...")
+        # Custom function to convert Opportunity object to dictionary
+        def opportunity_to_dict(opp):
+            return {
+                "project_name": opp.project_name,
+                "client": opp.client,
+                "country": opp.country,
+                "sector": opp.sector,
+                "summary": opp.summary,
+                "deadline": opp.deadline,
+                "program": opp.program,
+                "budget": opp.budget,
+                "url": opp.url,
+                "found": opp.found,
+            }
+
         opp.set_three_matched_scores_and_recommended_partners_ids([])  # Initialize with empty list
+        opp_json = json.dumps(opportunity_to_dict(opp), indent=4)
+
+        print(opp_json)
         db.session.add(opp)
         db.session.commit()
 
         print("Project saved successfully.")
 
 
-    def get_openai_response(self, prompt, query):
+    async def get_openai_response(self, prompt, query):
         """Get response from OpenAI API"""
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(
@@ -240,29 +260,29 @@ class BankScraperBase:
     
 
 
-    def scrape_page(self):
+    async def scrape_page(self):
         """Main function to scrape projects with proper pagination"""
 
         try:
             while True:
-                self.setup_driver()
+                await self.setup_driver()
                 try:
                     self.driver.get(self.get_url())
                     # Wait for all of page to load
-                    self.wait_for_completed_loading()
+                    await self.wait_for_completed_loading()
 
                     # Print page title and URL for debugging
                     print(f"Page title: {self.driver.title}")
                     print(f"Current URL: {self.driver.current_url}")
 
-                    self.extract_projects_data();
+                    await self.extract_projects_data();
 
                     # Check for next page
                     print("Checking for next page...")
-                    if self.find_and_click_next_page(driver):
+                    if await self.find_and_click_next_page():
                         print("Successfully navigated to next page")
-                        driver.quit()
-                        driver = None
+                        self.driver.quit()
+                        self.driver = None
                         time.sleep(3)  # Wait before next page
                         continue
                     else:
@@ -278,8 +298,8 @@ class BankScraperBase:
             logging.error(f"Fatal error in scrape_page: {e}")
             print(f"Fatal error: {e}")
         finally:
-            if driver:
-                driver.quit()
+            if self.driver:
+                self.driver.quit()
                 print("Driver closed")
 
 
@@ -293,14 +313,14 @@ class BankScraperBase:
         """Return name of site"""
         raise NotImplementedError("The 'get_name' method must be implemented in subclasses.")
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         """Abstract method for extracting a projects data"""
         raise NotImplementedError("The 'extract_projects_data' method must be implemented in subclasses.")
 
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the 'Next Page' button"""
         raise NotImplementedError("The 'find_and_click_next_page' method must be implemented in subclasses.")
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         """extract project data in page with url"""
         raise NotImplementedError("The 'extract_project_data' method must be implemented in subclasses.")

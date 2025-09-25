@@ -182,7 +182,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
         # sector
         try:
             prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. You will find applied sector(field). Output must be only sector without any comment and prefix such as `sector:`. If sector is not defined, plz return `Not defined`"
-            fields["sector"] = ""  # getOpenAIResponse(prompt, container.text.strip())
+            fields["sector"] = ""  # get_openai_response(prompt, container.text.strip())
 
         except Exception as e:
             print(f"Error extracting text: {e}")

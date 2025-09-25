@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import logging
+import asyncio
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -214,7 +215,7 @@ def notify_error(message):
 #         logging.info("Scheduler stopped.")
 
 
-def run_scraping():
+async def run_scraping():
     with scraping_lock:
         # List of scraping functions
         scrape_wb = WorldBankScraper()
@@ -244,7 +245,7 @@ def run_scraping():
         #             logging.error(f"Error running {scraper.__name__}: {e}")
         #             notify_error(f"Error running {scraper.__name__}: {e}")
 
-        scrape_wb.scrape_page()
+        await scrape_wb.scrape_page()
 
 
 def stop_scraping():
@@ -252,4 +253,4 @@ def stop_scraping():
 
 
 if __name__ == "__main__":
-    run_scraping()
+    asyncio.run(run_scraping())
