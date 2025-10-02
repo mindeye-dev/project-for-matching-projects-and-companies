@@ -20,7 +20,7 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
         return "European Invement Bank"
 
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         # Try multiple approaches to find project data
         project_data = None
 
@@ -77,18 +77,22 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
                     if link:
                         row_url = link.get_attribute("href")
 
-                self.extract_project_data(row_url)
+                print(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
-                print(f"Error processing row {i+1}: {e}")
+                print(f"Error processing row {i+1}: ", e)
                 continue
         
         # finished founding new projects
+    def is_next_page_by_click(self):
+        return True
 
-
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
+            
             # Wait until the span element is clickable
             span_element = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "span.fa.fa-arrow-right"))
@@ -103,7 +107,7 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -123,6 +127,9 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
             )
             # Extract and print the visible text
             fields["title"] = title_elem.text
+            print("title:", fields["title"])
+
+            fields["client"] = "European Investment Bank"
 
             # country
             # #pipeline-overview, first .bulleted-list--blue, a
@@ -138,6 +145,7 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
             first_link = bulleted_lists[0].find_element(By.TAG_NAME, "a")
             # Get the text of that <a> element
             fields["country"] = first_link.text
+            print("country:", fields["country"])
 
             # budget
             # .totalAmount 's next sibling
@@ -157,26 +165,25 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
                 fields["budget"] = next_sibling.text
             else:
                 print("No next sibling element found after .totalAmount")
+            print("budget:", fields["budget"])
 
             # sector
             # Find the first <a> inside that bulleted list
             second_link = bulleted_lists[1].find_element(By.TAG_NAME, "a")
             # Get the text of that <a> element
             fields["sector"] = second_link.text
+            print("sector:", fields["sector"])
 
             # summary
             #pipeline-overview, div,10 th and 11 th sibling
             # Find the #pipeline-overview element
-            tenth_div_sibling = self.driver.find_element(
-                By.XPATH, "//*[@id='pipeline-overview']/following-sibling::div[10]"
+            container=self.driver.find_element(
+                By.CSS_SELECTOR, "#content"
             )
-            eleventh_div_sibling = self.driver.find_element(
-                By.XPATH, "//*[@id='pipeline-overview']/following-sibling::div[11]"
-            )
-            # Get its text
-            fields['summary'] = tenth_div_sibling.text+eleventh_div_sibling
-
-            print(">>>>> scraping deadline date now.")
+            container_text=container.text.strip()
+            prompt = "I will upload contract content. Plz analyze it and then give me summary only. Summary must be detailed. Output must be only summary without any comment and prefix such as `summary:`"
+            fields["summary"] = await self.get_openai_response(prompt, container_text)
+            print("summary:", fields["summary"])
 
             # deadline
             # .pipeline-ref, 4th span
@@ -193,9 +200,11 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
                     if i + 1 < len(spans):
                         fields["deadline"] = spans[i + 1].text.strip()
                     break
+            print("deadline:", fields["deadline"])
 
             # program
             fields["program"] = "Not defined"
+            fields["url"] = url
 
         except Exception as e:
             print(f"Failed to scrape project content")
@@ -205,6 +214,10 @@ class EuropeanInvestmentBankScraper(BankScraperBase):
 
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        print(fields)
+        await self.save_to_database(fields)
+
+        print("saved successfully!")
         return fields
 
 

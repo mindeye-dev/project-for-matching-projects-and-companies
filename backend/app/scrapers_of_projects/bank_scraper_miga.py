@@ -20,7 +20,7 @@ class WorldBankGroupGuaranteesScraper(BankScraperBase):
         return "World Bank Group Guarantees"
 
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         # Try multiple approaches to find project data
         project_data = None
 
@@ -77,26 +77,31 @@ class WorldBankGroupGuaranteesScraper(BankScraperBase):
                     if link:
                         row_url = link.get_attribute("href")
 
-                self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
                 continue
         
         # finished founding projects
+        
+    def is_next_page_by_click(self):
+        return False
 
-
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
-            page_num += 1
+            self.page_num += 1
+            self.driver.quit()
+            self.driver = None
             return True
 
         except Exception as e:
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -112,25 +117,25 @@ class WorldBankGroupGuaranteesScraper(BankScraperBase):
             container_text = container_elem.text.strip()
             print(container_text)
             prompt = "I will upload contract content. Plz analyze it and then give me project title only. Output must be only project title without any comment and prefix such as `project title:`"
-            fields["title"] = self.get_openai_response(prompt, container_text)
+            fields["title"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me applied country only. Output must be only country name without any comment and prefix such as `country:`"
-            fields["country"] = self.get_openai_response(prompt, container_text)
+            fields["country"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "You are given a contract document. Extract the contract budget only.  Return the budget amount exactly as written in the document (e.g., `US$317.5 million`).  If no budget is mentioned, return only `Not defined`.  Do not add any comments, explanations, or prefixes."
-            fields["budget"] = self.get_openai_response(prompt, container_text)
+            fields["budget"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. Output must be only applied sector without any comment and prefix such as `sector:`"
-            fields["sector"] = self.get_openai_response(prompt, container_text)
+            fields["sector"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me summary only. Output must be only summary without any comment and prefix such as `summary:`"
-            fields["summary"] = self.get_openai_response(prompt, container_text)
+            fields["summary"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me last deadline date only. Output must be only last deadline date without any comment and prefix such as `deadline date:`"
-            fields["deadline"] = self.get_openai_response(prompt, container_text)
+            fields["deadline"] = await self.get_openai_response(prompt, container_text)
 
             prompt = "I will upload contract content. Plz analyze it and then give me related program and project only. Output must be only related program and project without any comment and prefix such as `related program/project:`"
-            fields["program"] = self.get_openai_response(prompt, container_text)
+            fields["program"] = await self.get_openai_response(prompt, container_text)
 
             # Project URL
             fields["url"] = url
@@ -138,6 +143,7 @@ class WorldBankGroupGuaranteesScraper(BankScraperBase):
             print("error in scraping fields")
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        await self.save_to_database(fields)
         return fields
 
 

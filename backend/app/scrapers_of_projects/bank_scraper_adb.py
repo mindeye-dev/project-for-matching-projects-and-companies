@@ -20,8 +20,10 @@ class AsianDevelopmentBankScraper(BankScraperBase):
         return "Asian Development Bank"
 
 
-    def extract_projects_data(self):
-        
+    async def extract_projects_data(self):
+
+        await self.handle_cloudflare_captcha()
+
         rows = []
 
         try:
@@ -53,7 +55,8 @@ class AsianDevelopmentBankScraper(BankScraperBase):
                     if link:
                         row_url = link.get_attribute("href")
 
-                self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
@@ -62,17 +65,23 @@ class AsianDevelopmentBankScraper(BankScraperBase):
         # finished founding new projects
 
 
-    def find_and_click_next_page(self):
+    def is_next_page_by_click(self):
+        return False
+
+
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
             self.page_num += 1
+            self.driver.quit()
+            self.driver = None
             return True
 
         except Exception as e:
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -153,6 +162,7 @@ class AsianDevelopmentBankScraper(BankScraperBase):
         fields["url"] = url
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        await self.save_to_database(fields)
         return fields
 
 

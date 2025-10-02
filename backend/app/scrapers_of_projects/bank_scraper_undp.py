@@ -12,14 +12,14 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
         super().__init__()
         self.os_num=0
 
-    def get_url(self, page_num):
+    def get_url(self):
         return f"https://procurement-notices.undp.org";
     
     def get_name(self):
         return "United Nations Development Programme"
 
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         # Try multiple approaches to find project data
         project_data = None
 
@@ -76,7 +76,8 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
                     if link:
                         row_url = link.get_attribute("href")
 
-                self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
@@ -84,8 +85,10 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
         
         # finished founding projects
 
+    def is_next_page_by_click(self):
+        return True
 
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
             # Try multiple selectors for next page buttons
@@ -133,7 +136,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -153,6 +156,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
                 )
             )
             fields["title"] = title_elem.text.strip()
+            print("title", fields["title"])
         except Exception:
             fields["title"] = ""
         # client
@@ -169,7 +173,8 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
                     )
                 )
             )
-            fields["country"] = p_elem.text
+            fields["country"] = p_elem.text.split("-")[-1]
+            print("country:", fields["country"])
         except Exception:
             fields["country"] = ""
 
@@ -181,8 +186,18 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
 
         # sector
         try:
+            container = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (
+                        By.CSS_SELECTOR,
+                        "main",
+                    )
+                )
+            )
             prompt = "I will upload contract content. Plz analyze it and then give me applied sector only. You will find applied sector(field). Output must be only sector without any comment and prefix such as `sector:`. If sector is not defined, plz return `Not defined`"
-            fields["sector"] = ""  # get_openai_response(prompt, container.text.strip())
+            fields["sector"] = await self.get_openai_response(prompt, container.text.strip())
+
+            print("sector: ", fields["sector"])
 
         except Exception as e:
             print(f"Error extracting text: {e}")
@@ -197,6 +212,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
             fields["summary"] = " ".join(
                 elem.text.strip() for elem in summary_elems if elem.text.strip()
             )
+            # print("summary:", fields["summary"])
         except Exception as e:
             print(f"Error extracting summary: {e}")
 
@@ -213,6 +229,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
 
             # Get the text of the <p> element and strip whitespace
             fields["deadline"] = p_elem.text.strip()
+            print("deadline:",fields["deadline"])
         except Exception as e:
             print(f"Error extracting deadline date: {e}")
 
@@ -223,6 +240,7 @@ class UnitedNationsDevelopmentProgrammeScraper(BankScraperBase):
         fields["url"] = url
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        await self.save_to_database(fields)
         return fields
 
 

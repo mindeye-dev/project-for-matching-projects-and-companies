@@ -108,29 +108,7 @@ def find_partners_for_opportunity():
         three_suitable_matched_score_and_companies_data = (
             get_three_suitable_matched_scores_and_companies_data(data)
         )
-
-        if three_suitable_matched_score_and_companies_data.__len__() == 0:
-            return jsonify({"message": "No suitable partners found"})
-        # Query opportunity, update opportunity table
-        opportunity = Opportunity.query.get(data.id)
-        if not opportunity:
-            return False  # or handle error
-        opportunity.found = True
-
-        three_matched_scores_and_recommended_partners_ids = [
-            {
-                "matched_score": item["matched_score"],
-                "company_id": item["company_data"][
-                    "id"
-                ],  # or item["company_data"].id if object
-            }
-            for item in three_suitable_matched_score_and_companies_data
-        ]
-
-        opportunity.three_matched_scores_and_recommended_partners_ids = (
-            three_matched_scores_and_recommended_partners_ids
-        )
-        db.session.commit()
+        
 
         return jsonify(three_suitable_matched_score_and_companies_data)
     except Exception as e:

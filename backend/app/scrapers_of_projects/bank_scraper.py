@@ -89,56 +89,299 @@ class BankScraperBase:
 
         print("-- Driver set up for scraping --")
 
+    async def handle_cloudflare_captcha(self):
+        """Handle Cloudflare CAPTCHA"""
+        start_time = time.time()
+        
+        # Keep solving CAPTCHA until the timeout is reached or CAPTCHA disappears
+        while await self.is_cloudflare_captcha_present(30):
+            await self.solve_cloudflare_captcha()
+            
+            # Sleep to allow for the CAPTCHA solving to process
+            time.sleep(2)  # You can adjust this depending on how long CAPTCHA solving takes
+
+            # Check if CAPTCHA is still present after attempting to solve it
+            if time.time() - start_time > 180:  # If it takes longer than 3 minutes, break the loop
+                print("Timeout reached. CAPTCHA was not solved.")
+                break
+            
+        # Verify if CAPTCHA was solved successfully
+        if not await self.is_cloudflare_captcha_present(30):
+            print("CAPTCHA solved successfully.")
+        else:
+            print("Failed to solve CAPTCHA.")
     
-    def solve_cloudflare_captcha(self):
-        """Solve Cloudflare CAPTCHA"""
+    async def solve_cloudflare_captcha(self):
+        """Solve Cloudflare CAPTCHA with improved detection and handling"""
         try:
-            wait = WebDriverWait(self.driver, 10)
-            frames = wait.until(
-                EC.presence_of_all_elements_located((By.TAG_NAME, "iframe"))
-            )
-            checkbox_found = False
-
-            print("Found iframe")
-
-            for frame in frames:
-                self.driver.switch_to.frame(frame)
+            print("Attempting to solve Cloudflare CAPTCHA...")
+            
+            # Wait for page to load and check for CAPTCHA elements
+            wait = WebDriverWait(self.driver, 15)
+            
+            # Multiple selectors for Cloudflare challenge elements
+            cloudflare_selectors = [
+                "iframe[src*='challenges.cloudflare.com']",
+                "iframe[src*='cf-chl-widget']",
+                "iframe[id*='cf-chl-widget']",
+                "iframe[class*='cf-chl-widget']",
+                "iframe[src*='turnstile']"
+            ]
+            
+            challenge_frame = None
+            for selector in cloudflare_selectors:
                 try:
-                    checkbox = wait.until(
-                        EC.element_to_be_clickable(
-                            (By.CSS_SELECTOR, "input[type='checkbox']")
-                        )
+                    challenge_frame = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
                     )
-                    checkbox.click()
-                    checkbox_found = True
-                    print("CAPTCHA checkbox clicked.")
-                    self.driver.switch_to.default_content()
+                    print(f"Found Cloudflare challenge frame with selector: {selector}")
                     break
                 except TimeoutException:
-                    self.driver.switch_to.default_content()
+                    continue
+            
+            if not challenge_frame:
+                print("No Cloudflare challenge frame found")
+                return False
+            
+            # Switch to the challenge frame
+            self.driver.switch_to.frame(challenge_frame)
+            
+            # Multiple selectors for the checkbox
+            checkbox_selectors = [
+                "input[type='checkbox']",
+                "input[type='checkbox'][id*='challenge']",
+                "input[type='checkbox'][class*='challenge']",
+                "input[type='checkbox'][id*='cf-chl-widget']",
+                "input[type='checkbox'][class*='cf-chl-widget']",
+                "input[type='checkbox'][id*='turnstile']",
+                "input[type='checkbox'][class*='turnstile']"
+            ]
+            
+            checkbox_clicked = False
+            for selector in checkbox_selectors:
+                try:
+                    checkbox = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                    )
+                    print(f"Found checkbox with selector: {selector}")
+                    
+                    # Scroll to element if needed
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", checkbox)
+                    time.sleep(1)
+                    
+                    # Click the checkbox
+                    checkbox.click()
+                    checkbox_clicked = True
+                    print("CAPTCHA checkbox clicked successfully")
+                    break
+                except (TimeoutException, ElementClickInterceptedException):
+                    continue
+            
+            # Switch back to default content
+            self.driver.switch_to.default_content()
+            
+            if not checkbox_clicked:
+                print("No clickable checkbox found in challenge frame")
+                return False
+            
+            # Wait for CAPTCHA to complete (multiple indicators)
+            print("Waiting for CAPTCHA to complete...")
+            
+            # Wait up to 30 seconds for completion
+            for i in range(30):
+                try:
+                    # Check if challenge frame is gone (indicator of completion)
+                    self.driver.find_element(By.CSS_SELECTOR, "iframe[src*='challenges.cloudflare.com']")
+                except:
+                    print("Challenge frame disappeared - CAPTCHA likely completed")
+                    return True
+                
+                # Check for success indicators
+                try:
+                    success_elements = [
+                        "div[class*='cf-chl-widget'][class*='success']",
+                        "div[class*='challenge-success']",
+                        "div[class*='turnstile-success']"
+                    ]
+                    for selector in success_elements:
+                        if self.driver.find_element(By.CSS_SELECTOR, selector):
+                            print("CAPTCHA completed successfully")
+                            return True
+                except:
+                    pass
+                
+                time.sleep(1)
+            
+            print("CAPTCHA completion timeout - may need manual intervention")
+            return False
+            
+        except Exception as e:
+            print(f"Error solving Cloudflare CAPTCHA: {e}")
+            # Ensure we're back to default content
+            try:
+                self.driver.switch_to.default_content()
+            except:
+                pass
+            return False
 
-            if not checkbox_found:
-                print("Checkbox input not found in any iframe.")
-        except TimeoutException:
-            print("No iframes found or checkbox did not appear within timeout.")
+    async def wait_for_captcha_completion(self, timeout=30):
+        """Wait for CAPTCHA to complete with better detection"""
+        print("Waiting for CAPTCHA to complete...")
+        
+        for i in range(timeout):
+            try:
+                # Check if challenge frame is gone (indicator of completion)
+                self.driver.find_element(By.CSS_SELECTOR, "iframe[src*='challenges.cloudflare.com']")
+            except:
+                print("Challenge frame disappeared - CAPTCHA likely completed")
+                return True
+            
+            # Check for success indicators
+            try:
+                success_elements = [
+                    "div[class*='cf-chl-widget'][class*='success']",
+                    "div[class*='challenge-success']",
+                    "div[class*='turnstile-success']"
+                ]
+                for selector in success_elements:
+                    if self.driver.find_element(By.CSS_SELECTOR, selector):
+                        print("CAPTCHA completed successfully")
+                        return True
+            except:
+                pass
+            
+            time.sleep(1)
+        
+        print("CAPTCHA completion timeout - may need manual intervention")
+        return False
 
     
-    def is_cloudflare_captcha_present(self, timeout=5):
-        """Check if Cloudflare CAPTCHA is present"""
-        search_text = "www.adb.org needs to review the security of your connection before proceeding"
-        page_source = self.driver.page_source
-        return search_text in page_source
-
-    def is_captcha_present(self):
-        """Check if any CAPTCHA is present (e.g., Google's reCAPTCHA)"""
+    async def is_cloudflare_captcha_present(self, timeout=50):
+        """Check if Cloudflare CAPTCHA is present with multiple detection methods"""
         try:
-            WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "iframe[src*='recaptcha']")
-                )
-            )
-            return True
-        except TimeoutException:
+            # Method 1: Check for specific Cloudflare elements
+            cloudflare_selectors = [
+                "iframe[src*='challenges.cloudflare.com']",
+                "iframe[src*='cf-chl-widget']",
+                "iframe[id*='cf-chl-widget']",
+                "iframe[class*='cf-chl-widget']",
+                "iframe[src*='turnstile']",
+                "div[class*='cf-chl-widget']",
+                "div[id*='cf-chl-widget']",
+                "div[class*='challenge']",
+                "div[id*='challenge']"
+            ]
+            
+            for selector in cloudflare_selectors:
+                try:
+                    WebDriverWait(self.driver, 2).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    print(f"Cloudflare CAPTCHA detected with selector: {selector}")
+                    return True
+                except TimeoutException:
+                    continue
+            
+            # Method 2: Check page source for Cloudflare indicators
+            page_source = self.driver.page_source.lower()
+            cloudflare_indicators = [
+                "challenges.cloudflare.com",
+                "cf-chl-widget",
+                "cloudflare challenge",
+                "checking your browser",
+                "please wait while we check your browser",
+                "ddos protection by cloudflare",
+                "security check",
+                "turnstile"
+            ]
+            
+            for indicator in cloudflare_indicators:
+                if indicator in page_source:
+                    print(f"Cloudflare CAPTCHA detected in page source: {indicator}")
+                    return True
+            
+            # Method 3: Check for specific text patterns
+            text_patterns = [
+                "www.adb.org needs to review the security of your connection before proceeding",
+                "just a moment",
+                "checking your browser",
+                "please wait",
+                "security check",
+                "ddos protection"
+            ]
+            
+            for pattern in text_patterns:
+                if pattern.lower() in page_source:
+                    print(f"Cloudflare CAPTCHA detected with text pattern: {pattern}")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error checking for Cloudflare CAPTCHA: {e}")
+            return False
+
+    async def is_captcha_present(self):
+        """Check if any CAPTCHA is present (Cloudflare, reCAPTCHA, hCaptcha, etc.)"""
+        try:
+            # Check for various CAPTCHA types
+            captcha_selectors = [
+                # reCAPTCHA
+                "iframe[src*='recaptcha']",
+                "div[class*='recaptcha']",
+                "div[id*='recaptcha']",
+                # hCaptcha
+                "iframe[src*='hcaptcha']",
+                "div[class*='hcaptcha']",
+                "div[id*='hcaptcha']",
+                # Cloudflare
+                "iframe[src*='challenges.cloudflare.com']",
+                "iframe[src*='cf-chl-widget']",
+                "div[class*='cf-chl-widget']",
+                # Turnstile
+                "iframe[src*='turnstile']",
+                "div[class*='turnstile']",
+                # Generic CAPTCHA
+                "iframe[src*='captcha']",
+                "div[class*='captcha']",
+                "div[id*='captcha']",
+                "input[type='checkbox'][id*='captcha']",
+                "input[type='checkbox'][class*='captcha']"
+            ]
+            
+            for selector in captcha_selectors:
+                try:
+                    WebDriverWait(self.driver, 2).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    print(f"CAPTCHA detected with selector: {selector}")
+                    return True
+                except TimeoutException:
+                    continue
+            
+            # Check page source for CAPTCHA indicators
+            page_source = self.driver.page_source.lower()
+            captcha_indicators = [
+                "recaptcha",
+                "hcaptcha",
+                "cloudflare",
+                "turnstile",
+                "captcha",
+                "challenge",
+                "security check",
+                "verify you are human",
+                "prove you are not a robot"
+            ]
+            
+            for indicator in captcha_indicators:
+                if indicator in page_source:
+                    print(f"CAPTCHA detected in page source: {indicator}")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error checking for CAPTCHA: {e}")
             return False
         
     async def wait_for_completed_loading(self, timeout=30):
@@ -203,46 +446,80 @@ class BankScraperBase:
         except Exception as e:
             print(f"Error printing HTML for {description}: {e}")
             
+    async def opportunity_of_url(self, input_url):
+        # Query for the first match (returns None if no match is found)
+        opportunity = Opportunity.query.filter_by(url=input_url).first()
+        print("Opportunity is ",opportunity)
+        return opportunity
+
     async def save_to_database(self, project):
         """Save project data to the database"""
         print("saving database now.")
-        opp = Opportunity(
-            project_name=project["title"],
-            client=project["client"],
-            country=project["country"],
-            sector=project["sector"],
-            summary=project["summary"],
-            deadline=project["deadline"],
-            program=project["program"],
-            budget=project["budget"],
-            url=project["url"],
-            found=False,
-        )
+        existing_opportunity=await self.opportunity_of_url(project["url"]);
+        if existing_opportunity is not None:
+            print("URL already exists. Updating the existing project...")
+    
+            # Update the fields with new data from the project dictionary
+            existing_opportunity.project_name = project["title"]
+            existing_opportunity.client = project["client"]
+            existing_opportunity.country = project["country"]
+            existing_opportunity.sector = project["sector"]
+            existing_opportunity.summary = project["summary"]
+            existing_opportunity.deadline = project["deadline"]
+            existing_opportunity.program = project["program"]
+            existing_opportunity.budget = project["budget"]
+            existing_opportunity.found = False  # You can modify this as needed
+            
+            # Reset the three_matched_scores_and_recommended_partners_ids field
+            existing_opportunity.set_three_matched_scores_and_recommended_partners_ids([])
 
-        print("Saving project to database...")
-        # Custom function to convert Opportunity object to dictionary
-        def opportunity_to_dict(opp):
-            return {
-                "project_name": opp.project_name,
-                "client": opp.client,
-                "country": opp.country,
-                "sector": opp.sector,
-                "summary": opp.summary,
-                "deadline": opp.deadline,
-                "program": opp.program,
-                "budget": opp.budget,
-                "url": opp.url,
-                "found": opp.found,
-            }
+            # Save the updates to the database
+            db.session.commit()
 
-        opp.set_three_matched_scores_and_recommended_partners_ids([])  # Initialize with empty list
-        opp_json = json.dumps(opportunity_to_dict(opp), indent=4)
+            print("Existing project updated successfully.")
+        else:
+            print("adding new project to database")
+            try:
+                opp = Opportunity(
+                    project_name=project["title"],
+                    client=project["client"],
+                    country=project["country"],
+                    sector=project["sector"],
+                    summary=project["summary"],
+                    deadline=project["deadline"],
+                    program=project["program"],
+                    budget=project["budget"],
+                    url=project["url"],
+                    found=False,
+                )
 
-        print(opp_json)
-        db.session.add(opp)
-        db.session.commit()
+                print("Saving project to database...")
+                # Custom function to convert Opportunity object to dictionary
+                def opportunity_to_dict(opp):
+                    return {
+                        "project_name": opp.project_name,
+                        "client": opp.client,
+                        "country": opp.country,
+                        "sector": opp.sector,
+                        "summary": opp.summary,
+                        "deadline": opp.deadline,
+                        "program": opp.program,
+                        "budget": opp.budget,
+                        "url": opp.url,
+                        "found": opp.found,
+                    }
 
-        print("Project saved successfully.")
+                opp.set_three_matched_scores_and_recommended_partners_ids([])  # Initialize with empty list
+                opp_json = json.dumps(opportunity_to_dict(opp), indent=4)
+
+                print(opp_json)
+                db.session.add(opp)
+                db.session.commit()
+            except Exception as e:
+                print("Error in saving database", e)
+
+
+            print("Project saved successfully.")
 
 
     async def get_openai_response(self, prompt, query):
@@ -265,7 +542,11 @@ class BankScraperBase:
 
         try:
             while True:
-                await self.setup_driver()
+                if not self.is_next_page_by_click():
+                    await self.setup_driver()
+                elif self.page_num == 0:
+                    await self.setup_driver()
+
                 try:
                     self.driver.get(self.get_url())
                     # Wait for all of page to load
@@ -281,8 +562,6 @@ class BankScraperBase:
                     print("Checking for next page...")
                     if await self.find_and_click_next_page():
                         print("Successfully navigated to next page")
-                        self.driver.quit()
-                        self.driver = None
                         time.sleep(3)  # Wait before next page
                         continue
                     else:
@@ -320,6 +599,11 @@ class BankScraperBase:
     async def find_and_click_next_page(self):
         """Find and click the 'Next Page' button"""
         raise NotImplementedError("The 'find_and_click_next_page' method must be implemented in subclasses.")
+
+    async def is_next_page_by_click(self):
+        """Return whether next page is transacted by clicking button"""
+        raise NotImplementedError("The 'is_next_page_by_click' method must be implemented in subclasses.")
+
 
     async def extract_project_data(self, url):
         """extract project data in page with url"""

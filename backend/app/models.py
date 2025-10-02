@@ -18,18 +18,8 @@ class Opportunity(db.Model):
     deadline = db.Column(db.String(64))
     program = db.Column(db.String(256))
     budget = db.Column(db.String(64))
-    url = db.Column(db.String(512))
+    url = db.Column(db.String(512), unique=True)
     found = db.Column(db.Boolean, default=False, nullable=False)
-    # Use Text to store the JSON data as a string
-    three_matched_scores_and_recommended_partners_ids = db.Column(db.Text)
-
-    def set_three_matched_scores_and_recommended_partners_ids(self, value):
-        # Convert Python list or dict to a JSON string
-        self.three_matched_scores_and_recommended_partners_ids = json.dumps(value)
-
-    def get_three_matched_scores_and_recommended_partners_ids(self):
-        # Convert JSON string back to a Python object (list or dict)
-        return json.loads(self.three_matched_scores_and_recommended_partners_ids) if self.three_matched_scores_and_recommended_partners_ids else []
 
 
 
@@ -39,8 +29,14 @@ class Partner(db.Model):
     country = db.Column(db.String(128))
     sector = db.Column(db.String(128))
     website = db.Column(db.String(512))
-    linkedindata = db.Column(JSON)
+    linkedin_url = db.Column(db.String(512))
+    linkedin_data = db.Column(JSON)
 
+class Match(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    opportunity = db.Column(db.Integer)
+    partner = db.Column(db.Integer)
+    score = db.Column(db.Float)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)

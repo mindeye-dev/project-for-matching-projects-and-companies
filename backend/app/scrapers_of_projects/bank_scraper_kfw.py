@@ -13,14 +13,14 @@ class KfWEntwicklungsBankScraper(BankScraperBase):
         self.page_num=0
 
     def get_url(self):
-        return f"https://www.kfw-entwicklungsbank.de/Internationale-Finanzierung/KfW-Entwicklungsbank/Projekte/Projektdatenbank/index.jsp?query=*%3A*&page={page_num}&rows=10&sortBy=relevance&sortOrder=desc&facet.filter.language=de&dymFailover=true&groups=1"
+        return f"https://www.kfw-entwicklungsbank.de/Internationale-Finanzierung/KfW-Entwicklungsbank/Projekte/Projektdatenbank/index.jsp?query=*%3A*&page={self.page_num}&rows=10&sortBy=relevance&sortOrder=desc&facet.filter.language=de&dymFailover=true&groups=1"
         
     
     def get_name(self):
         return "KfW Entwicklungsbank"
 
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         # Try multiple approaches to find project data
         project_data = None
 
@@ -61,7 +61,7 @@ class KfWEntwicklungsBankScraper(BankScraperBase):
         except Exception:
             print("No urls of kfw projects found")
 
-        print(f"Processing {len(rows)} project rows on page {self.os_num}")
+        print(f"Processing {len(rows)} project rows on page {self.page_num}")
 
         # Process each row
 
@@ -76,8 +76,11 @@ class KfWEntwicklungsBankScraper(BankScraperBase):
                     link = row.find_element(By.CSS_SELECTOR, "a")
                     if link:
                         row_url = link.get_attribute("href")
+                
+                print(row_url)
 
-                self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
@@ -85,18 +88,22 @@ class KfWEntwicklungsBankScraper(BankScraperBase):
         
         # finished founding new projects
 
+    def is_next_page_by_click(self):
+        return False
 
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
-            page_num += 1
+            self.page_num += 1
+            self.driver.quit()
+            self.driver = None
             return True
 
         except Exception as e:
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -196,6 +203,7 @@ class KfWEntwicklungsBankScraper(BankScraperBase):
         fields["url"] = url
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        await self.save_to_database(fields)
         return fields
 
 

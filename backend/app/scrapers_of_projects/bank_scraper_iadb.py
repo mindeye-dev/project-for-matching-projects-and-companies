@@ -21,13 +21,13 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
         return "Inter American Development Bank"
 
 
-    def extract_projects_data(self):
+    async def extract_projects_data(self):
         # Try multiple approaches to find project data
         project_data = None
 
         # First, try to find the main project container
         selectors = [
-            (By.CSS_SELECTOR, ".table-wrapper.table-wrapper--sticky "),
+            (By.CSS_SELECTOR, ".views-element-container"),
         ]
 
         for selector_type, selector in selectors:
@@ -43,7 +43,7 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
                 # Wait to appear project url.
                 WebDriverWait(self.driver, 15).until(
                     EC.presence_of_all_elements_located(
-                        (By.CSS_SELECTOR, 'td.views-field.views-field-title[headers="view-title-table-column"] a')
+                        (By.CSS_SELECTOR, '.views-element-container tbody a')
                     )
                 )
 
@@ -57,12 +57,12 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
         rows = []
 
         try:
-            rows = project_data.find_elements(By.CSS_SELECTOR, 'td.views-field.views-field-title[headers="view-title-table-column"] a')
+            rows = project_data.find_elements(By.CSS_SELECTOR, 'tbody a')
             print(f"Found {len(rows)} urls of inter american development bank projects!")
         except Exception:
             print("No urls of inter american development bank projects found")
 
-        print(f"Processing {len(rows)} project rows on page {self.os_num}")
+        print(f"Processing {len(rows)} project rows on page {self.page_num}")
 
         # Process each row
 
@@ -78,7 +78,8 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
                     if link:
                         row_url = link.get_attribute("href")
 
-                self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
@@ -86,18 +87,22 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
         
         # finished founding new projects
 
+    def is_next_page_by_click(self):
+        return False
 
-    def find_and_click_next_page(self):
+    async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
         try:
-            page_num += 1
+            self.page_num += 1
+            self.driver.quit()
+            self.driver = None
             return True
 
         except Exception as e:
             print(f"Error finding/clicking next page: {e}")
             return False
 
-    def extract_project_data(self, url):
+    async def extract_project_data(self, url):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)
@@ -144,6 +149,7 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
             print(f"Failed to scrape summary: {e}")
 
         # Submission deadline
+        fields["deadline"]=""
         try:
             fields["deadline"] = elements[2].text.strip()
         except Exception as e:
@@ -156,6 +162,7 @@ class InterAmericanDevelopmentBankScraper(BankScraperBase):
         fields["url"] = url
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
+        await self.save_to_database(fields)
         return fields
 
 

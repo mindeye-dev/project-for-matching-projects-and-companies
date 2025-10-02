@@ -40,8 +40,11 @@ def create_app():
         except Exception as e:
             print(f"Error in background scraping: {e}")
     
-    # Start scraping in a separate thread
-    scraping_thread = threading.Thread(target=delayed_scraping, daemon=True)
-    scraping_thread.start()
+    # Start scraping in a separate thread, but avoid running twice under the Werkzeug reloader
+    is_reloader = os.environ.get("WERKZEUG_RUN_MAIN") is not None
+    is_primary_process = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if (not is_reloader) or is_primary_process:
+        scraping_thread = threading.Thread(target=delayed_scraping, daemon=True)
+        scraping_thread.start()
     
     return app

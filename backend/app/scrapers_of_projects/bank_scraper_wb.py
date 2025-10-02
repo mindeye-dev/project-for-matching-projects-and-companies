@@ -77,7 +77,8 @@ class WorldBankScraper(BankScraperBase):
                 row_url = f"https://projects.worldbank.org/en/projects-operations/project-detail/{tdElements[2].text}"
                 print(row_url)
 
-                await self.extract_project_data(row_url)
+                if await self.opportunity_of_url(row_url) is None:
+                    await self.extract_project_data(row_url)
 
             except Exception as e:
                 print(f"Error processing row {i+1}: {e}")
@@ -85,18 +86,24 @@ class WorldBankScraper(BankScraperBase):
         
         # finished founding projects
 
+    def is_next_page_by_click(self):
+        return False
 
     async def find_and_click_next_page(self):
         """Find and click the next page button, return True if successful"""
+        self.driver.quit()
+        self.driver = None
         try:
             self.os_num += 20
             return True
 
         except Exception as e:
             print(f"Error finding/clicking next page: {e}")
+            
             return False
 
     async def extract_project_data(self, url):
+
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[-1])
         self.driver.get(url)

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from sqlalchemy import cast, String
 
 
-from app.models import Opportunity, Partner
+from app.models import Opportunity, Partner, Match, db
 
 from app.scrapers_score_of_companies.matching_scorer import getOpenAIResponse, get_matched_score_between_project_and_company
 
@@ -51,12 +51,12 @@ def can_make_request():
 
 def code_of_country(country_name):
 
-    prompt = "If I upload location name, plz give me linkedin location code. output must be only location code. If there is not matching, output must be only empty"
+    prompt = "If an uploaded location name matches a LinkedIn location code, output only the location code. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn location code as per the official code table."
     return getPerplexityResponse(prompt, country_name)
 
 
 def code_of_sector(sector_name):
-    prompt = "If I upload industry name, plz give me linkedin industry code. output must be only industry code. If there is not matching, output must be only empty"
+    prompt = "If an uploaded industry name matches a LinkedIn industry code, output only the industry code. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn industry code as per the official code table."
     return getPerplexityResponse(prompt, sector_name)
 
 
@@ -152,22 +152,27 @@ def getPerplexityResponse(prompt, query):
 
 def get_three_suitable_matched_scores_and_companies_data(project):
     try:
+
+        # Get companies urls at linkedin
         company_urls = get_all_linkinurls_of_companies(
             project["country"], project["sector"]
         )
-        print(company_urls)
+
+        # Find three best matched urls
         matched_scores_and_companies_data = []
         for i, company_url in enumerate(company_urls):
             # Extract project information
 
             # company_data is json type.
+            # get company data of url
             company_data = get_companydata_from_linkedinurl(company_url)
 
             # Find matched partner in Partner table
             result = Partner.query.filter(
-                cast(Partner.linkedindata["profile_url"], String) == company_url
+                cast(Partner.linkedin_data["profile_url"], String) == company_url
             ).all()
 
+            # if there is several partners in Partner table, remove all without first one and then update first one with new data
             if len(result) > 1:
                 # Error, remove another elements without one element
                 # Keep the first element
@@ -181,16 +186,18 @@ def get_three_suitable_matched_scores_and_companies_data(project):
                     synchronize_session=False
                 )
 
+                # replace linkedin data of first_partner
+                first_partner.linkedin_data=company_data.linkedindata
+
                 db.session.commit()
 
                 # Now result contains only one element logically (you can reassign if needed)
                 result = [first_partner]
-
+            # if there is several partners in Partner table, remove all without first one
             elif len(result) == 1:
-                # result[0] is one partner data of Partner database, so let update linkedindata if it is differente with original linkedindata of Partner database.
-                if result[0].linkedindata != company_data.linkedindata:
-                    result[0].linkedindata = company_data.linkedindata
-                    db.session.commit()  # Commit changes to the database
+                # result[0] is one partner data of Partner database, so let update linkedin_data if it is differente with original linkedin_data of Partner database.
+                result[0].linkedin_data = company_data.linkedindata
+                db.session.commit()  # Commit changes to the database
 
             else:
                 new_partner = Partner(
@@ -199,17 +206,19 @@ def get_three_suitable_matched_scores_and_companies_data(project):
                     country=company_data.get("country"),
                     sector=company_data.get("sector"),
                     website=company_data.get("website"),
-                    linkedindata=company_data,  # assign JSON data here
+                    linkedin_data=company_data.linkedindata,  # assign JSON data here
                 )
                 db.session.add(new_partner)
                 db.session.commit()
+                result.append(new_partner)
+
 
             # if there is data in Partner database, update it.
             matched_score = get_matched_score_between_project_and_company(
-                project, company_data
+                project, result[0]
             )
             matched_scores_and_companies_data.append(
-                {"matched_score": matched_score, "company_data": company_data}
+                {"matched_score": matched_score, "company_data": result[0]}
             )
             print("matching score is ", matched_score)
 
@@ -220,13 +229,38 @@ def get_three_suitable_matched_scores_and_companies_data(project):
             reverse=True,
         )
 
-        three_suitable_matched_scores_and_companies_data = [
-            item["company_data"] for item in sorted_data[:3]
-        ]
+        three_suitable_matched_scores_and_companies_data = sorted_data[:3]
 
-        print(three_suitable_matched_scores_and_companies_data)
+        # find matches of project and then delete all
+        Match.query.filter_by(opportunity=project.id).delete()
+        db.session.commit()
 
-        return three_suitable_matched_scores_and_companies_data
+        three_companies=[]
+
+        for item in three_suitable_matched_scores_and_companies_data:
+            score = item["matched_score"]
+            company = item["company_data"]
+
+            new_match = Match(
+                opportunity=project.id,
+                partner=company.id,
+                score=score
+            )
+            db.session.add(new_match)
+
+            three_companies.append({
+                "id": company.id,
+                "name": company.name,
+                "country": company.country,
+                "website": company.website,
+                "sector": company.sector,
+                "matched_score": score
+            })
+
+        # Commit once after the loop
+        db.session.commit()
+
+        return three_companies
     except Exception as e:
         logging.error(f"Error in get_3suitable_companies_data: {e}")
         return []

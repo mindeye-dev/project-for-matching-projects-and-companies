@@ -20,7 +20,6 @@ from app.scrapers_of_projects.bank_scraper_wb import WorldBankScraper
 from app.scrapers_of_projects.bank_scraper_afdb import AfricanDevelopmeBankScraper
 from app.scrapers_of_projects.bank_scraper_eib import EuropeanInvestmentBankScraper
 from app.scrapers_of_projects.bank_scraper_afd import FrenchDevelopmentAgencyScraper
-from app.scrapers_of_projects.bank_scraper_isdb import IslamicDevelopmentBankScraper
 from app.scrapers_of_projects.bank_scraper_kfw import KfWEntwicklungsBankScraper
 from app.scrapers_of_projects.bank_scraper_undp import UnitedNationsDevelopmentProgrammeScraper
 from app.scrapers_of_projects.bank_scraper_adb import AsianDevelopmentBankScraper
@@ -219,6 +218,18 @@ async def run_scraping():
     with scraping_lock:
         # List of scraping functions
         scrape_wb = WorldBankScraper()
+        scrape_afdb = AfricanDevelopmeBankScraper()
+        scrape_eib = EuropeanInvestmentBankScraper()
+        scrape_afd = FrenchDevelopmentAgencyScraper()
+        scrape_kfw = KfWEntwicklungsBankScraper()
+        scrape_undp = UnitedNationsDevelopmentProgrammeScraper()
+        scrape_adb = AsianDevelopmentBankScraper()
+        scrape_ebrd = EuropeanBankScraper()
+        scrape_ifc = InternationalFinanceCorporationScraper()
+        scrape_fmo = DutchEnterpreneurialDevelopmentBankScraper()
+        scrape_miga = WorldBankGroupGuaranteesScraper()
+        scrape_iadb = InterAmericanDevelopmentBankScraper()
+        #scrape_debit = DevelopmentBankScraper()
         scrapers = [
             scrape_wb,
             # scrape_afdb,
@@ -245,7 +256,7 @@ async def run_scraping():
         #             logging.error(f"Error running {scraper.__name__}: {e}")
         #             notify_error(f"Error running {scraper.__name__}: {e}")
 
-        await scrape_wb.scrape_page()
+        # await scrape_adb.scrape_page()
 
 
 def stop_scraping():
