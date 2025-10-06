@@ -3,6 +3,8 @@ Flask-RESTful
 Flask-CORS
 Flask-SQLAlchemy
 Flask-jwt-extended
+langchain
+sqlalchemy
 bcrypt
 pandas
 openpyxl

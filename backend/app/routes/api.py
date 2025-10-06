@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, send_file, current_app
-from app.models import Opportunity, Partner
+from app.models import Opportunity, Partner, Session
 from app.models import db
 from app.scrapers_score_of_companies.company_scraper_scorer import (
     get_three_suitable_matched_scores_and_companies_data,
@@ -11,8 +11,8 @@ import os
 
 import pandas as pd
 import io
-from flask_jwt_extended import jwt_required
-from app.chatbot import get_AI_message
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app.chatbot import create_user_session, delete_user_session, chat_with_AI, get_session_messages_dict, get_user_sessions_dict
 
 api_bp = Blueprint("api", __name__)
 
@@ -36,7 +36,7 @@ def list_opportunities():
         query = query.filter(Opportunity.sector.ilike(f"%{sector}%"))
     print("filtered query is ", query)
     results = query.order_by(Opportunity.id.desc()).all()
-    print("results are ", results)
+    # print("results are ", results)
     out = []
     for o in results:
         out.append(
@@ -79,7 +79,6 @@ def download_report():
                     "Budget": o.budget,
                     "URL": o.url,
                     "Found": o.found,
-                    "Recommended Partners": o.recommended_partners,
                 }
             )
         df = pd.DataFrame(rows)
@@ -108,7 +107,6 @@ def find_partners_for_opportunity():
         three_suitable_matched_score_and_companies_data = (
             get_three_suitable_matched_scores_and_companies_data(data)
         )
-        
 
         return jsonify(three_suitable_matched_score_and_companies_data)
     except Exception as e:
@@ -139,12 +137,67 @@ def message_from_chatbot():
     """
     Placeholder for AI chatbot interaction.
     """
+    user_id = get_jwt_identity()
     data = request.json
     if not data or not data.get("message"):
         return jsonify({"error": "Missing message in JSON body"}), 400
     user_message = data["message"]
+    session_id = data.get("session_id")
     # This is a placeholder. In a real implementation, you would integrate
     # with an AI service to get a response.
 
-    bot_response = get_AI_message(user_message)
+    bot_response = chat_with_AI(user_id, user_message, session_id)
     return jsonify({"response": bot_response})
+
+
+@api_bp.route("/create_session", methods=["POST"])
+@jwt_required()
+def create_session():
+    print("-----------------------------")
+    user_id = get_jwt_identity()
+    print(user_id)
+    session = create_user_session(user_id)
+    return jsonify(session)
+
+
+# -------------------------------
+# Delete a session
+# -------------------------------
+@api_bp.route("/delete_session/<int:session_id>", methods=["DELETE"])
+@jwt_required()
+def delete_session(session_id):
+    print("deleting session ", session_id)
+    user_id = get_jwt_identity()
+    result = delete_user_session(user_id, session_id)
+    print(result)
+    return jsonify(result)
+
+
+# -------------------------------
+# Get all messages from a session
+# -------------------------------
+@api_bp.route("/session/<int:session_id>/messages", methods=["GET"])
+@jwt_required()
+def get_session_messages(session_id):
+    user_id = get_jwt_identity()
+    # Verify session belongs to user
+    session_obj = Session.query.filter_by(id=session_id, user_id=user_id).first()
+    if not session_obj:
+        return jsonify({"error": "Session not found"}), 404
+
+    messages = get_session_messages_dict(session_id)
+    return jsonify({"messages": messages})
+
+
+# -------------------------------
+# Get all sessions of the user
+# -------------------------------
+@api_bp.route("/sessions", methods=["GET"])
+@jwt_required()
+def get_user_sessions():
+    user_id = get_jwt_identity()
+    sessions = get_user_sessions_dict(user_id)
+    return jsonify({"sessions": sessions})
+
+
+

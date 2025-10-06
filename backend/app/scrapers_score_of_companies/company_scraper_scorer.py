@@ -260,6 +260,10 @@ def get_three_suitable_matched_scores_and_companies_data(project):
         # Commit once after the loop
         db.session.commit()
 
+        # set found of project to true.
+        Opportunity.query.filter_by(id=project.id).update({"found": True})
+        db.session.commit()
+
         return three_companies
     except Exception as e:
         logging.error(f"Error in get_3suitable_companies_data: {e}")

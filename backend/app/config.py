@@ -9,4 +9,5 @@ class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "u23y4y23&98237(****K)")
     SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI", "sqlite:///app.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
- 
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+
