@@ -1,7 +1,6 @@
 # https://docs.langchain.com/langsmith/observability-quickstart#application-code
 import os
 from flask import Flask
-
 from flask_cors import CORS
 import threading
 import time
@@ -10,7 +9,7 @@ import asyncio
 from .routes.api import api_bp
 from .routes.auth import auth_bp
 from flask_jwt_extended import JWTManager
-from .models import db, migrate
+from .models import db
 from .scrapers_of_projects.scheduled_scraper import run_scraping, stop_scraping
 
 
@@ -19,9 +18,6 @@ def create_app():
     app.config.from_object("app.config.Config")
     print(app.config['SQLALCHEMY_DATABASE_URI'])
     db.init_app(app)
-    migrate.init_app(app, db)
-    with app.app_context():
-        db.create_all()
     
     # Configure CORS - permissive for development
     CORS(app, 

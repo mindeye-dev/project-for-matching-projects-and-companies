@@ -24,6 +24,7 @@ class Opportunity(db.Model):
     budget = db.Column(db.String(64))
     url = db.Column(db.String(512), unique=True)
     found = db.Column(db.Boolean, default=False, nullable=False)
+    three_matched_scores_and_recommended_partners_ids = db.Column(db.Text)
 
 
 
@@ -35,8 +36,7 @@ class Partner(db.Model):
     country = db.Column(db.String(128))
     sector = db.Column(db.String(128))
     website = db.Column(db.String(512))
-    linkedin_url = db.Column(db.String(512))
-    linkedin_data = db.Column(JSON)
+    linkedindata = db.Column(JSON)
 
 class Match(db.Model):
     __tablename__ = 'match'
@@ -52,7 +52,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(128), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(32), default="user")  # 'user' or 'admin'
+    role = db.Column(db.String(32))  # 'user' or 'admin'
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_login = db.Column(db.DateTime)
 
@@ -68,7 +68,6 @@ class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     started_at = db.Column(db.DateTime, default = datetime.datetime.now(datetime.timezone.utc))
-    ended_at = db.Column(db.DateTime, default = datetime.datetime.now(datetime.timezone.utc))
 
     # relationship to user
     user = db.relationship("User", back_populates="sessions")
@@ -81,7 +80,6 @@ class Session(db.Model):
             "id": self.id,
             "user_id": self.user_id,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
             "message_count": len(self.messages) if self.messages else 0,
             "messages": [m.to_dict() for m in self.messages]
         }
@@ -109,6 +107,3 @@ class Message(db.Model):
             "content" : self.content,
             "created_at": self.created_at,
         }
-
-
-

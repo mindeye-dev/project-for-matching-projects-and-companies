@@ -49,9 +49,14 @@ class QueryOutput(TypedDict):
 def _get_engine():
     global _engine
     if _engine is None:
-        db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
-        print("engine db url is ", db_uri)
-        _engine = create_engine(db_uri, echo = False, connect_args={"check_same_thread": False})
+        try:
+            db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
+            print("engine db url is ", db_uri)
+            _engine = create_engine(db_uri, echo = False, connect_args={"check_same_thread": False})
+        except Exception as e:
+            print(f"Error creating engine: {e}")
+            # Fallback to direct SQLite connection
+            _engine = create_engine('sqlite:///app.db', echo = False, connect_args={"check_same_thread": False})
     return _engine
 
 # SQLAlchemy session(optional)
@@ -59,7 +64,7 @@ def _get_session():
     global _session
     if _session is None:
         engine = _get_engine()
-        Session = sessionmaker(bing=engine)
+        Session = sessionmaker(bind=engine)
         _session = Session()
     return _session
 
@@ -67,26 +72,45 @@ def _get_session():
 def _get_db():
     global _db
     if _db is None:
-        engine = _get_engine()
-        _db = SQLDatabase(engine)
+        engine = db.get_engine()  # Use Flask-SQLAlchemy engine from app config
+        _db = SQLDatabase(engine, sample_rows_in_table_info=3)
     return _db
 
 # OpenAI LLM
 def _get_llm():
     global _llm
     if _llm is None:
-        _llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
-            temperature=0,
-            api_key=current_app.config['OPENAI_API_KEY']
-        )
+        _llm = init_chat_model("gpt-4o-2024-08-06", model_provider="openai")
     return _llm
 
 def write_query(state: State):
     """Generate SQL query to fetch information."""
-    global llm
+    _get_db()
     global query_prompt_template
     print("writing query")
+    system_message = """
+    Given an input question, create a syntactically correct {dialect} query to
+    run to help find the answer. Unless the user specifies in his question a
+    specific number of examples they wish to obtain, always limit your query to
+    at most {top_k} results. You can order the results by a relevant column to
+    return the most interesting examples in the database.
+
+    Never query for all the columns from a specific table, only ask for a the
+    few relevant columns given the question.
+
+    Pay attention to use only the column names that you can see in the schema
+    description. Be careful to not query for columns that do not exist. Also,
+    pay attention to which column is in which table.
+
+    Only use the following tables:
+    {table_info}
+    """
+
+    user_prompt = "Question: {input}"
+
+    query_prompt_template = ChatPromptTemplate(
+        [("system", system_message), ("user", user_prompt)]
+    )
     prompt = query_prompt_template.invoke(
         {
             "dialect": _db.dialect,
@@ -95,18 +119,20 @@ def write_query(state: State):
             "input": state["question"],
         }
     )
-    structured_llm = llm.with_structured_output(QueryOutput)
+    _get_llm()
+    structured_llm = _llm.with_structured_output(QueryOutput)
     result = structured_llm.invoke(prompt)
     return {"query": result["query"]}
 
 def execute_query(state: State):
     """Execute SQL query."""
+    _get_db()
     execute_query_tool = QuerySQLDatabaseTool(db=_db)
     return {"result": execute_query_tool.invoke(state["query"])}
 
 def generate_answer(state: State):
     """Answer question using retrieved information as context."""
-    global llm
+    global _llm
     prompt = (
         "Given the following user question, corresponding SQL query, "
         "and SQL result, answer the user question.\n\n"
@@ -114,78 +140,11 @@ def generate_answer(state: State):
         f"SQL Query: {state['query']}\n"
         f"SQL Result: {state['result']}"
     )
-    response = llm.invoke(prompt)
+    response = _llm.invoke(prompt)
     return {"answer": response.content}
 
 # SQLDatabaseChain
 def _get_sql_chain_lang_graph():
-    global _sql_chain
-    global llm
-    global _db
-    global query_prompt_template
-    if _sql_chain is None:
-        llm = init_chat_model("gpt-4o-2024-08-06", model_provider="openai")
-        system_message = """
-        Given an input question, create a syntactically correct {dialect} query to
-        run to help find the answer. Unless the user specifies in his question a
-        specific number of examples they wish to obtain, always limit your query to
-        at most {top_k} results. You can order the results by a relevant column to
-        return the most interesting examples in the database.
-
-        Never query for all the columns from a specific table, only ask for a the
-        few relevant columns given the question.
-
-        Pay attention to use only the column names that you can see in the schema
-        description. Be careful to not query for columns that do not exist. Also,
-        pay attention to which column is in which table.
-
-        Only use the following tables:
-        {table_info}
-        """
-
-        user_prompt = "Question: {input}"
-
-        query_prompt_template = ChatPromptTemplate(
-            [("system", system_message), ("user", user_prompt)]
-        )
-
-        _db = _get_db()
-
-        print("initialized database")
-
-        # schema_str = """TABLE opportunity (id, project_name, client, country, sector, summary, deadline, program, budget, url, found)
-        #     TABLE partner (id, name, country, sector, website, linkedin_url, linkedin_data)
-        #     TABLE match (id, opportunity, partner, score)
-        #     TABLE user (id, email, password, role, created_at, last_login)
-        #     TABLE session (id, user_id, started_at, ended_at)
-        #     TABLE message (id, session_id, role, content, created_at)
-        #     """  # <-- USE PLAIN TEXT TABLE/LAYOUT, DON’T INCLUDE THE ORM CODE
-
-        sql_agent_prompt_template = """You are an expert data analyst. Given an input question, first create a syntactically correct {dialect} query to run, then look at the results of the query and describe the answer.
-        Use the following format:
-
-        Question: Question here
-        SQLQuery: SQL Query to run
-        SQLResult: Result of the SQLQuery
-        Answer: Final answer here
-
-        Only use the following tables:
-        {table_info}
-
-        Question: {input}"""
-
-        # Use input variables the chain expects
-        sql_prompt  = PromptTemplate(input_variables=["input", "table_info", "dialect"], template=sql_agent_prompt_template)
-
-
-        _sql_chain = SQLDatabaseChain.from_llm(
-            llm,
-            db=_db,
-            prompt=sql_prompt,
-            verbose=True
-        )
-
-
 
     graph_builder = StateGraph(State).add_sequence(
         [write_query, execute_query, generate_answer]
@@ -198,44 +157,61 @@ def _get_sql_chain_lang_graph():
 
 # Ask chatbot a question
 def get_AI_message(message: str):
-    result = None
-    sql_chain_lang_graph = _get_sql_chain_lang_graph()
-    config = {"configurable": {"thread_id": "1"}}
+    try:
+        result = None
+        sql_chain_lang_graph = _get_sql_chain_lang_graph()
+        config = {"configurable": {"thread_id": "1"}}
 
-    for step in sql_chain_lang_graph.stream(
-        {"question": message},
-        config,
-        stream_mode="updates",
-    ):
-        # Access the emitted data of each step
-        if 'generate_answer' in step:
-            result = step['generate_answer']['answer']
-    print(result)
-    return result
+        for step in sql_chain_lang_graph.stream(
+            {"question": message},
+            config,
+            stream_mode="updates",
+        ):
+            # Access the emitted data of each step
+            if 'generate_answer' in step:
+                result = step['generate_answer']['answer']
+        
+        print(f"AI result: {result}")
+        return result
+        
+    except Exception as e:
+        print(f"Error in get_AI_message: {str(e)}")
+        return None
 
 
 
 # Following are database management part
 
 def chat_with_AI(user_id, user_message, session_id):
-
-    # Create session if none
-
-    # Save user message
-    db.session.add(Message(session_id=session_id, role="user", content=user_message))
-    db.session.commit()
-
-    # Get AI response
-    ai_response = get_AI_message(user_message)
-
-    # Save AI message
-    db.session.add(Message(session_id=session_id, role="assistant", content=ai_response))
-    db.session.commit()
-
-
-    print("AI response=", ai_response)
-
-    return ai_response
+    try:
+        # Save user message
+        user_msg = Message(session_id=session_id, role="user", content=user_message)
+        db.session.add(user_msg)
+        db.session.commit()
+        
+        # Get AI response
+        ai_response = get_AI_message(user_message)
+        
+        if ai_response is None:
+            ai_response = "Sorry, I couldn't process your request. Please try again."
+        
+        # Save AI message (add timestamp to avoid duplicate constraint)
+        import datetime
+        ai_msg = Message(
+            session_id=session_id, 
+            role="assistant", 
+            content=ai_response + f" [Generated at {datetime.datetime.now()}]"
+        )
+        db.session.add(ai_msg)
+        db.session.commit()
+        
+        print("AI response=", ai_response)
+        return ai_response
+        
+    except Exception as e:
+        print(f"Error in chat_with_AI: {str(e)}")
+        db.session.rollback()
+        return f"An error occurred: {str(e)}"
 
 def create_user_session(user_id):
     session_obj = Session(user_id= user_id)
