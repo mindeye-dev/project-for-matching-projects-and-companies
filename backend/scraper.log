@@ -24805,3 +24805,60 @@ receiveMessage@chrome://remote/content/marionette/actors/MarionetteEventsParent.
 2025-10-08 23:24:05,703 INFO:No WebDriver instance to clean up.
 2025-10-08 23:24:05,703 INFO:No WebDriver instance to clean up.
 2025-10-08 23:24:05,703 INFO:No WebDriver instance to clean up.
+2026-02-08 10:06:33,462 INFO:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-02-08 10:06:33,482 INFO:[33mPress CTRL+C to quit[0m
+2026-02-08 10:08:16,570 INFO:127.0.0.1 - - [08/Feb/2026 10:08:16] "OPTIONS /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:08:17,449 INFO:127.0.0.1 - - [08/Feb/2026 10:08:17] "[31m[1mPOST /api/auth/signin HTTP/1.1[0m" 401 -
+2026-02-08 10:08:17,453 INFO:127.0.0.1 - - [08/Feb/2026 10:08:17] "[33mPOST /refresh HTTP/1.1[0m" 404 -
+2026-02-08 10:08:19,985 INFO:127.0.0.1 - - [08/Feb/2026 10:08:19] "OPTIONS /api/auth/signup HTTP/1.1" 200 -
+2026-02-08 10:08:20,305 INFO:127.0.0.1 - - [08/Feb/2026 10:08:20] "[31m[1mPOST /api/auth/signup HTTP/1.1[0m" 400 -
+2026-02-08 10:08:22,565 INFO:127.0.0.1 - - [08/Feb/2026 10:08:22] "[31m[1mPOST /api/auth/signup HTTP/1.1[0m" 400 -
+2026-02-08 10:08:24,216 INFO:127.0.0.1 - - [08/Feb/2026 10:08:24] "[31m[1mPOST /api/auth/signup HTTP/1.1[0m" 400 -
+2026-02-08 10:08:30,445 INFO:127.0.0.1 - - [08/Feb/2026 10:08:30] "OPTIONS /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:08:30,683 INFO:127.0.0.1 - - [08/Feb/2026 10:08:30] "[31m[1mPOST /api/auth/signin HTTP/1.1[0m" 401 -
+2026-02-08 10:08:30,992 INFO:127.0.0.1 - - [08/Feb/2026 10:08:30] "[33mPOST /refresh HTTP/1.1[0m" 404 -
+2026-02-08 10:08:43,060 INFO:127.0.0.1 - - [08/Feb/2026 10:08:43] "OPTIONS /api/auth/signup HTTP/1.1" 200 -
+2026-02-08 10:08:43,550 INFO:127.0.0.1 - - [08/Feb/2026 10:08:43] "POST /api/auth/signup HTTP/1.1" 200 -
+2026-02-08 10:08:55,469 INFO:127.0.0.1 - - [08/Feb/2026 10:08:55] "OPTIONS /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:08:56,046 INFO:127.0.0.1 - - [08/Feb/2026 10:08:56] "POST /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:08:56,049 INFO:127.0.0.1 - - [08/Feb/2026 10:08:56] "OPTIONS /api/auth/me HTTP/1.1" 200 -
+2026-02-08 10:08:56,070 INFO:127.0.0.1 - - [08/Feb/2026 10:08:56] "GET /api/auth/me HTTP/1.1" 200 -
+2026-02-08 10:08:56,424 INFO:127.0.0.1 - - [08/Feb/2026 10:08:56] "OPTIONS /api/fetchopportunities HTTP/1.1" 200 -
+2026-02-08 10:08:56,898 INFO:127.0.0.1 - - [08/Feb/2026 10:08:56] "GET /api/fetchopportunities HTTP/1.1" 200 -
+2026-02-08 10:09:15,213 INFO:127.0.0.1 - - [08/Feb/2026 10:09:15] "OPTIONS /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:09:15,245 INFO:127.0.0.1 - - [08/Feb/2026 10:09:15] "GET /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:09:18,453 INFO:127.0.0.1 - - [08/Feb/2026 10:09:18] "OPTIONS /api/message_from_chatbot HTTP/1.1" 200 -
+2026-02-08 10:09:24,873 INFO:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 403 Forbidden"
+2026-02-08 10:09:25,133 INFO:127.0.0.1 - - [08/Feb/2026 10:09:25] "POST /api/message_from_chatbot HTTP/1.1" 200 -
+2026-02-08 10:09:33,949 INFO:127.0.0.1 - - [08/Feb/2026 10:09:33] "OPTIONS /api/get-partners HTTP/1.1" 200 -
+2026-02-08 10:09:33,952 ERROR:Error in get_3suitable_companies_data: name 'OpenAI' is not defined
+2026-02-08 10:09:33,952 INFO:127.0.0.1 - - [08/Feb/2026 10:09:33] "POST /api/get-partners HTTP/1.1" 200 -
+2026-02-08 10:15:33,478 INFO:127.0.0.1 - - [08/Feb/2026 10:15:33] "OPTIONS /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:15:33,795 INFO:127.0.0.1 - - [08/Feb/2026 10:15:33] "GET /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:15:38,907 INFO:127.0.0.1 - - [08/Feb/2026 10:15:38] "OPTIONS /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:15:38,920 INFO:127.0.0.1 - - [08/Feb/2026 10:15:38] "GET /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,328 INFO:No WebDriver instance to clean up.
+2026-02-08 10:17:47,329 INFO:No WebDriver instance to clean up.
+2026-02-08 10:18:35,276 INFO:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-02-08 10:18:35,276 INFO:[33mPress CTRL+C to quit[0m
+2026-02-08 10:20:51,847 INFO:127.0.0.1 - - [08/Feb/2026 10:20:51] "OPTIONS /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:20:52,508 INFO:127.0.0.1 - - [08/Feb/2026 10:20:52] "POST /api/auth/signin HTTP/1.1" 200 -
+2026-02-08 10:20:52,516 INFO:127.0.0.1 - - [08/Feb/2026 10:20:52] "OPTIONS /api/auth/me HTTP/1.1" 200 -
+2026-02-08 10:20:52,519 INFO:127.0.0.1 - - [08/Feb/2026 10:20:52] "GET /api/auth/me HTTP/1.1" 200 -
+2026-02-08 10:20:52,901 INFO:127.0.0.1 - - [08/Feb/2026 10:20:52] "OPTIONS /api/fetchopportunities HTTP/1.1" 200 -
+2026-02-08 10:20:53,263 INFO:127.0.0.1 - - [08/Feb/2026 10:20:53] "GET /api/fetchopportunities HTTP/1.1" 200 -
+2026-02-08 10:21:02,587 INFO:127.0.0.1 - - [08/Feb/2026 10:21:02] "OPTIONS /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:21:02,594 INFO:127.0.0.1 - - [08/Feb/2026 10:21:02] "GET /api/sessions HTTP/1.1" 200 -
+2026-02-08 10:21:05,327 INFO:127.0.0.1 - - [08/Feb/2026 10:21:05] "GET /api/sessions HTTP/1.1" 200 -

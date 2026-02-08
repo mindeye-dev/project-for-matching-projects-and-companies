@@ -1,0 +1,21 @@
+Project Requirements
+
+1. Scraping projects from well known banks.
+Done
+Scraping projects from bank sites.
+2. Find 3 best matched projects from linkedin.
+Done.
+Undone: Scraping company profiles from linkedin.
+In this function, we are using openai to get linkedin industry id from industry string of project and region id from region string of project. 
+But in sometimes, it does not find suitable industry id and region id.
+This is problem.
+
+3. Chatbot with langchain.
+Done
+3. Teams integration
+Undone.
+Need to integrate teams for chatbot.
+
+
+4. Documentation of project.
+

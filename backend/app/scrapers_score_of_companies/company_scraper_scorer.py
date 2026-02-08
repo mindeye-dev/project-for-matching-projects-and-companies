@@ -20,11 +20,20 @@ import datetime
 import time
 
 from urllib.parse import urlparse
-
+import json
 
 # Industry code
 # https://learn.microsoft.com/en-us/linkedin/shared/references/reference-tables/industry-codes?source=recommendations
 
+# Load industry codes for local matching
+INDUSTRY_CODES = []
+try:
+    industry_code_path = os.path.join(os.path.dirname(__file__), "industry_code.json")
+    with open(industry_code_path, "r", encoding="utf-8") as f:
+        INDUSTRY_CODES = json.load(f)
+except Exception as e:
+    logging.warning(f"Could not load industry_code.json: {e}")
+    INDUSTRY_CODES = []
 
 LINKEDIN_ACCOUNT_ID = os.getenv("LINKEDIN_ACCOUNT_ID")
 UNIPILE_API_KEY = os.getenv("UNIPILE_API_KEY")
@@ -50,35 +59,158 @@ def can_make_request():
 
 
 def code_of_country(country_name):
-
-    prompt = "If an uploaded location name matches a LinkedIn location code, output only the location code. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn location code as per the official code table."
-    return getPerplexityResponse(prompt, country_name)
+    """
+    Get LinkedIn location code for a country name.
+    First tries local matching, then falls back to Perplexity API.
+    """
+    # Normalize country name for matching
+    country_lower = country_name.lower().strip()
+    
+    # Try common country code mappings first (you can expand this)
+    country_mappings = {
+        "united states": "us",
+        "usa": "us",
+        "united kingdom": "gb",
+        "uk": "gb",
+        "canada": "ca",
+        "australia": "au",
+        "germany": "de",
+        "france": "fr",
+        "italy": "it",
+        "spain": "es",
+        "netherlands": "nl",
+        "belgium": "be",
+        "switzerland": "ch",
+        "austria": "at",
+        "sweden": "se",
+        "norway": "no",
+        "denmark": "dk",
+        "finland": "fi",
+        "poland": "pl",
+        "portugal": "pt",
+        "greece": "gr",
+        "ireland": "ie",
+        "new zealand": "nz",
+        "south africa": "za",
+        "brazil": "br",
+        "mexico": "mx",
+        "argentina": "ar",
+        "chile": "cl",
+        "colombia": "co",
+        "india": "in",
+        "china": "cn",
+        "japan": "jp",
+        "south korea": "kr",
+        "singapore": "sg",
+        "malaysia": "my",
+        "thailand": "th",
+        "indonesia": "id",
+        "philippines": "ph",
+        "vietnam": "vn",
+        "egypt": "eg",
+        "nigeria": "ng",
+        "kenya": "ke",
+        "ghana": "gh",
+        "morocco": "ma",
+        "tunisia": "tn",
+        "algeria": "dz",
+        "botswana": "bw",
+    }
+    
+    # Check if we have a direct mapping
+    if country_lower in country_mappings:
+        return country_mappings[country_lower]
+    
+    # Fallback to Perplexity API
+    try:
+        prompt = "If an uploaded location name matches a LinkedIn location code, output only the location code. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn location code as per the official code table."
+        result = getPerplexityResponse(prompt, country_name)
+        # Clean up the result - extract just the code if it's in a sentence
+        result = result.strip()
+        # If result is empty or invalid, return empty string
+        if not result or len(result) > 10:  # Location codes are typically short
+            return ""
+        return result
+    except Exception as e:
+        logging.error(f"Error getting country code from Perplexity: {e}")
+        return ""
 
 
 def code_of_sector(sector_name):
-    prompt = "If an uploaded industry name matches a LinkedIn industry code, output only the industry code. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn industry code as per the official code table."
-    return getPerplexityResponse(prompt, sector_name)
+    """
+    Get LinkedIn industry code for a sector name.
+    First tries local matching using industry_code.json, then falls back to Perplexity API.
+    """
+    # Normalize sector name for matching
+    sector_lower = sector_name.lower().strip()
+    
+    # Try to match against industry_code.json first
+    best_match = None
+    best_score = 0
+    
+    for industry in INDUSTRY_CODES:
+        label_lower = industry.get("label", "").lower()
+        industry_id = industry.get("industry_id")
+        
+        # Exact match
+        if label_lower == sector_lower:
+            return str(industry_id)
+        
+        # Partial match - check if sector name contains industry label or vice versa
+        if sector_lower in label_lower or label_lower in sector_lower:
+            # Calculate a simple similarity score
+            common_words = set(sector_lower.split()) & set(label_lower.split())
+            score = len(common_words) / max(len(sector_lower.split()), len(label_lower.split()))
+            if score > best_score:
+                best_score = score
+                best_match = industry_id
+    
+    # If we found a good match (score > 0.3), use it
+    if best_match and best_score > 0.3:
+        return str(best_match)
+    
+    # Fallback to Perplexity API
+    try:
+        prompt = "If an uploaded industry name matches a LinkedIn industry code, output only the industry code as a number. If no match is found, output only an empty string. If the match is ambiguous, output a similar or most common LinkedIn industry code as per the official code table. Only output the numeric industry code, nothing else."
+        result = getPerplexityResponse(prompt, sector_name)
+        # Clean up the result - extract just the number
+        result = result.strip()
+        # Remove any non-numeric characters except digits
+        result = ''.join(filter(str.isdigit, result))
+        if result:
+            return result
+        return ""
+    except Exception as e:
+        logging.error(f"Error getting sector code from Perplexity: {e}")
+        return ""
 
 
 def get_all_linkinurls_of_companies(country, sector):
-    print(country)
-    print(sector)
-    country_code = f"{code_of_country(country)}"
-    sector_code = f"{code_of_sector(sector)}"
+    print(f"Searching for companies in country: {country}, sector: {sector}")
+    country_code = code_of_country(country)
+    sector_code = code_of_sector(sector)
 
     url = (
         f"https://{UNIPILE_DNS}/api/v1/linkedin/search?account_id={LINKEDIN_ACCOUNT_ID}"
     )
     total_urls = []
-    print(country_code)
-    print(sector_code)
+    print(f"Country code: {country_code}, Sector code: {sector_code}")
 
+    # Only include codes if they are not empty
     payload = {
         "api": "classic",
         "category": "companies",
-        "industry": [sector_code],
-        "location": [country_code],
     }
+    
+    if sector_code:
+        payload["industry"] = [sector_code]
+    if country_code:
+        payload["location"] = [country_code]
+    
+    # If both codes are empty, log a warning
+    if not sector_code and not country_code:
+        logging.warning(f"Both country and sector codes are empty for country={country}, sector={sector}")
+        return []
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
@@ -168,9 +300,11 @@ def get_three_suitable_matched_scores_and_companies_data(project):
             company_data = get_companydata_from_linkedinurl(company_url)
 
             # Find matched partner in Partner table
+            # Try to get profile_url from linkedin_data JSON field
+            profile_url = company_data.get("profile_url") or company_data.get("url", "")
             result = Partner.query.filter(
-                cast(Partner.linkedin_data["profile_url"], String) == company_url
-            ).all()
+                cast(Partner.linkedindata["profile_url"], String) == profile_url
+            ).all() if profile_url else []
 
             # if there is several partners in Partner table, remove all without first one and then update first one with new data
             if len(result) > 1:
@@ -187,7 +321,7 @@ def get_three_suitable_matched_scores_and_companies_data(project):
                 )
 
                 # replace linkedin data of first_partner
-                first_partner.linkedin_data=company_data.linkedindata
+                first_partner.linkedindata = company_data
 
                 db.session.commit()
 
@@ -195,18 +329,18 @@ def get_three_suitable_matched_scores_and_companies_data(project):
                 result = [first_partner]
             # if there is several partners in Partner table, remove all without first one
             elif len(result) == 1:
-                # result[0] is one partner data of Partner database, so let update linkedin_data if it is differente with original linkedin_data of Partner database.
-                result[0].linkedin_data = company_data.linkedindata
+                # result[0] is one partner data of Partner database, so let update linkedindata if it is different from original linkedindata of Partner database.
+                result[0].linkedindata = company_data
                 db.session.commit()  # Commit changes to the database
 
             else:
                 new_partner = Partner(
                     # Assign other fields as needed, example:
-                    name=company_data.get("name"),
-                    country=company_data.get("country"),
-                    sector=company_data.get("sector"),
-                    website=company_data.get("website"),
-                    linkedin_data=company_data.linkedindata,  # assign JSON data here
+                    name=company_data.get("name", ""),
+                    country=company_data.get("location", {}).get("country", "") if isinstance(company_data.get("location"), dict) else company_data.get("country", ""),
+                    sector=company_data.get("industry", ""),
+                    website=company_data.get("website", ""),
+                    linkedindata=company_data,  # assign JSON data here
                 )
                 db.session.add(new_partner)
                 db.session.commit()
@@ -231,38 +365,56 @@ def get_three_suitable_matched_scores_and_companies_data(project):
 
         three_suitable_matched_scores_and_companies_data = sorted_data[:3]
 
-        # find matches of project and then delete all
-        Match.query.filter_by(opportunity=project.id).delete()
-        db.session.commit()
-
         three_companies=[]
 
-        for item in three_suitable_matched_scores_and_companies_data:
-            score = item["matched_score"]
-            company = item["company_data"]
+        # Only save matches if project has an id (existing opportunity)
+        project_id = project.get("id") if isinstance(project, dict) else (project.id if hasattr(project, "id") else None)
+        
+        if project_id:
+            # find matches of project and then delete all
+            Match.query.filter_by(opportunity=project_id).delete()
+            db.session.commit()
 
-            new_match = Match(
-                opportunity=project.id,
-                partner=company.id,
-                score=score
-            )
-            db.session.add(new_match)
+            for item in three_suitable_matched_scores_and_companies_data:
+                score = item["matched_score"]
+                company = item["company_data"]
 
-            three_companies.append({
-                "id": company.id,
-                "name": company.name,
-                "country": company.country,
-                "website": company.website,
-                "sector": company.sector,
-                "matched_score": score
-            })
+                new_match = Match(
+                    opportunity=project_id,
+                    partner=company.id,
+                    score=score
+                )
+                db.session.add(new_match)
 
-        # Commit once after the loop
-        db.session.commit()
+                three_companies.append({
+                    "id": company.id,
+                    "name": company.name,
+                    "country": company.country,
+                    "website": company.website,
+                    "sector": company.sector,
+                    "matched_score": score
+                })
 
-        # set found of project to true.
-        Opportunity.query.filter_by(id=project.id).update({"found": True})
-        db.session.commit()
+            # Commit once after the loop
+            db.session.commit()
+
+            # set found of project to true.
+            Opportunity.query.filter_by(id=project_id).update({"found": True})
+            db.session.commit()
+        else:
+            # If no project id, just return the companies without saving matches
+            for item in three_suitable_matched_scores_and_companies_data:
+                score = item["matched_score"]
+                company = item["company_data"]
+
+                three_companies.append({
+                    "id": company.id,
+                    "name": company.name,
+                    "country": company.country,
+                    "website": company.website,
+                    "sector": company.sector,
+                    "matched_score": score
+                })
 
         return three_companies
     except Exception as e:

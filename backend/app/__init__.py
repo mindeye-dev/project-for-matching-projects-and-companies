@@ -8,6 +8,7 @@ import asyncio
 
 from .routes.api import api_bp
 from .routes.auth import auth_bp
+from .routes.teams import teams_bp
 from flask_jwt_extended import JWTManager
 from .models import db
 from .scrapers_of_projects.scheduled_scraper import run_scraping, stop_scraping
@@ -30,6 +31,7 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(teams_bp, url_prefix="/api/teams")
     
     # Start scraping after a short delay to ensure app is ready
     def delayed_scraping():

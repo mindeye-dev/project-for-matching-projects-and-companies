@@ -99,19 +99,48 @@ def download_report():
 def find_partners_for_opportunity():
     """
     Given opportunity details, find suitable partners.
+    Expects JSON with opportunity_id or full opportunity data.
     """
     data = request.json
     if not data:
         return jsonify({"error": "Missing JSON body"}), 400
     try:
+        # If opportunity_id is provided, fetch the opportunity from database
+        if "opportunity_id" in data:
+            opportunity = Opportunity.query.get(data["opportunity_id"])
+            if not opportunity:
+                return jsonify({"error": "Opportunity not found"}), 404
+            project_data = {
+                "id": opportunity.id,
+                "project_name": opportunity.project_name,
+                "client": opportunity.client,
+                "country": opportunity.country,
+                "sector": opportunity.sector,
+                "summary": opportunity.summary,
+                "deadline": opportunity.deadline,
+                "program": opportunity.program,
+                "budget": opportunity.budget,
+                "url": opportunity.url,
+            }
+        else:
+            # Use provided data, but ensure it has an id if it's an existing opportunity
+            project_data = data
+            if "id" not in project_data and "url" in project_data:
+                # Try to find existing opportunity by URL
+                existing = Opportunity.query.filter_by(url=project_data["url"]).first()
+                if existing:
+                    project_data["id"] = existing.id
+        
         three_suitable_matched_score_and_companies_data = (
-            get_three_suitable_matched_scores_and_companies_data(data)
+            get_three_suitable_matched_scores_and_companies_data(project_data)
         )
 
         return jsonify(three_suitable_matched_score_and_companies_data)
     except Exception as e:
         current_app.logger.error(f"Error finding partners: {e}")
-        return jsonify({"error": "Failed to find partners"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to find partners: {str(e)}"}), 500
  
 
 # user want to fine new opportunities. In this case, scraping is executed and if there is one oppotunity adn click star to thisgithub.o

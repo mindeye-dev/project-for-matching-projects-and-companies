@@ -1,8 +1,18 @@
 # Environment files (never commit secrets)
+# Ignore .env files but allow .env.example files
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
 backend/app/scrapers_of_projects/.env
 backend/app/scrapers_score_of_companies/.env
 backend/.env
+!backend/.env.example
+frontend/.env
+!frontend/.env.example
 bot/.env
+!bot/.env.example
 
 # Node dependencies
 frontend/global-roads-scout/node_modules/

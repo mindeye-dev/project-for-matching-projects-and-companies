@@ -254,3 +254,27 @@ def get_user_sessions_dict(user_id):
     ]
 
 
+async def process_message(message: str) -> str:
+    """
+    Async wrapper to process a user message using existing chatbot logic.
+
+    This runs the synchronous `get_AI_message` function in a thread executor so
+    async callers (like the Teams bot) can await it.
+    """
+    try:
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+
+        # Run the blocking LLM/database work in a thread pool
+        result = await loop.run_in_executor(None, get_AI_message, message)
+
+        if result is None:
+            return "Sorry, I couldn't process your request. Please try again."
+
+        return result
+    except Exception as e:
+        print(f"Error in process_message: {e}")
+        return f"An error occurred while processing the message: {e}"
+
+

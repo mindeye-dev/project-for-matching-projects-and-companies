@@ -1,5 +1,5 @@
 Scope of Work:
-A civil engineering consultancy specialized in transport and infrastructure seeks an AI developer to build and deploy a custom AI agent. The agent will monitor opportunities from multilateral development banks and international funding agencies and support strategic business development across Africa and the Middle East.
+Phase 1: A civil engineering consultancy specialized in transport and infrastructure seeks an AI developer to build and deploy a custom AI agent. The agent will monitor opportunities from multilateral development banks and international funding agencies and support strategic business development across Africa and the Middle East.
 The AI agent will:
 Track and extract new Expressions of Interest (EOIs) and consultancy opportunities from major development bank and donor websites.
 Generate a structured Excel report daily, listing key data such as:
@@ -22,7 +22,7 @@ Automated daily report generation in Excel format.
 Scoring model to assess opportunity compatibility.
 Partner lookup and listing mechanism per country.
 Chat interface (web-based or platform-native) for querying and reporting interaction.
-Ability to scale or migrate to enterprise collaboration tools in a second phase.
+Phase 2: Ability to scale or migrate to enterprise collaboration tools in a second phase.
 Preferred Technologies:
 Python or equivalent for scraping and automation
 Use of reliable cloud hosting during testing
